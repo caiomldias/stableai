@@ -23,6 +23,6 @@ export async function saveFinanceState(admin: SupabaseClient, userId: string, pa
 export function isFinanceData(value: unknown): value is FinanceData {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  const arrays = ["accounts", "transactions", "recurring", "boletos", "sharedExpenses", "investments", "vaults", "goals", "wishlist", "connections"];
+  const arrays = ["accounts", "transactions", "budgets", "recurring", "boletos", "sharedExpenses", "investments", "vaults", "goals", "wishlist", "connections"];
   return arrays.every((key) => Array.isArray(record[key])) && typeof record.notifications === "object";
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { calculateGoal, classifyTransaction, parseMoney, shortDate } from "@/lib/finance";
+import { calculateGoal, classifyTransaction, computeBudgetUsage, parseMoney, shortDate } from "@/lib/finance";
+import type { Transaction } from "@/lib/types";
 
 describe("regras financeiras do MVP", () => {
   it("calcula dez meses para uma meta de mil reais com aporte mensal de cem", () => {
@@ -22,5 +23,21 @@ describe("regras financeiras do MVP", () => {
   it("tolera datas ausentes vindas de conectores", () => {
     expect(shortDate("")).toBe("data não informada");
     expect(shortDate("valor-inválido")).toBe("data não informada");
+  });
+
+  it("soma apenas despesas da categoria, moeda e mês do orçamento", () => {
+    const base: Transaction = {
+      id: "1", accountId: "account", description: "Compra", amountCents: 30_000,
+      currency: "BRL", date: "2026-08-10", flow: "EXPENSE", kind: "CARD",
+      category: "Lazer", originalCategory: "Outros",
+    };
+    const [usage] = computeBudgetUsage([
+      base,
+      { ...base, id: "2", amountCents: 20_000, date: "2026-07-10" },
+      { ...base, id: "3", amountCents: 15_000, flow: "INCOME" },
+      { ...base, id: "4", amountCents: 10_000, currency: "USD" },
+    ], [{ id: "budget", category: "Lazer", monthlyLimitCents: 50_000, currency: "BRL" }], new Date("2026-08-22T12:00:00"));
+    expect(usage.spentCents).toBe(30_000);
+    expect(usage.percentage).toBe(60);
   });
 });

@@ -31,6 +31,13 @@ export interface Transaction {
   installment?: { current: number; total: number };
 }
 
+export interface Budget {
+  id: string;
+  category: string;
+  monthlyLimitCents: number;
+  currency: Currency;
+}
+
 export interface RecurringPayment {
   id: string;
   description: string;
@@ -136,6 +143,7 @@ export interface NotificationPreferences {
 export interface FinanceData {
   accounts: Account[];
   transactions: Transaction[];
+  budgets: Budget[];
   recurring: RecurringPayment[];
   boletos: Boleto[];
   sharedExpenses: SharedExpense[];

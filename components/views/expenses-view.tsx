@@ -5,16 +5,20 @@ import {
   ArrowsLeftRight,
   Barcode,
   CreditCard,
+  Gauge,
   MagnifyingGlass,
   NotePencil,
+  PencilSimple,
+  Plus,
   Repeat,
   SlidersHorizontal,
+  Trash,
   UserPlus,
   Wallet,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
-import { fullDate, money, parseMoney, shortDate } from "@/lib/finance";
-import type { FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
+import { computeBudgetUsage, fullDate, money, parseMoney, shortDate } from "@/lib/finance";
+import type { Budget, Currency, FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
 
 const filters: { id: "ALL" | TransactionKind; label: string }[] = [
   { id: "ALL", label: "Todos" },
@@ -38,6 +42,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("ALL");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Transaction | null>(null);
+  const [budgetEditor, setBudgetEditor] = useState<Budget | "new" | null>(null);
 
   const visible = useMemo(() => data.transactions
     .filter((item) => filter === "ALL" || item.kind === filter)
@@ -45,10 +50,22 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
     .sort((a, b) => b.date.localeCompare(a.date)), [data.transactions, filter, search]);
 
   const expenseTotal = visible.filter((item) => item.flow === "EXPENSE" && item.currency === "BRL").reduce((sum, item) => sum + item.amountCents, 0);
+  const budgetUsage = useMemo(() => computeBudgetUsage(data.transactions, data.budgets), [data.transactions, data.budgets]);
 
   return (
     <div className="stack">
       <div className="page-heading"><div><h2>Gastos e movimentações</h2><p>Encontre, classifique e anote cada lançamento.</p></div><span className="period-total"><small>Total filtrado</small><strong>{money(expenseTotal)}</strong></span></div>
+
+      <section className="budget-section">
+        <div className="section-heading"><div><h3>Orçamento do mês</h3><p>Defina tetos por categoria e acompanhe o consumo.</p></div><button className="button small ghost" type="button" onClick={() => setBudgetEditor("new")}><Plus size={17} /> Novo teto</button></div>
+        <div className="budget-grid">
+          {budgetUsage.map((budget) => {
+            const tone = budget.percentage >= 100 ? "danger" : budget.percentage >= 80 ? "warning" : "success";
+            return <article className="panel budget-card" key={budget.id}><div className="budget-top"><span className={`row-icon budget-${tone}`}><Gauge size={21} /></span><div><strong>{budget.category}</strong><small>{budget.currency}</small></div><div className="budget-actions"><button type="button" aria-label={`Editar teto de ${budget.category}`} onClick={() => setBudgetEditor(budget)}><PencilSimple size={17} /></button><button type="button" aria-label={`Excluir teto de ${budget.category}`} onClick={() => updateData((current) => ({ ...current, budgets: current.budgets.filter((item) => item.id !== budget.id) }))}><Trash size={17} /></button></div></div><div className="budget-values"><strong>{money(budget.spentCents, budget.currency)} de {money(budget.monthlyLimitCents, budget.currency)}</strong><span>{Math.round(budget.percentage)}%</span></div><div className={`budget-progress ${tone}`}><span style={{ width: `${Math.min(budget.percentage, 100)}%` }} /></div></article>;
+          })}
+          {!budgetUsage.length && <div className="panel budget-empty"><Gauge size={24} /><span>Crie seu primeiro teto mensal.</span></div>}
+        </div>
+      </section>
 
       <section className="expense-toolbar">
         <div className="search-box"><MagnifyingGlass size={20} /><label className="sr-only" htmlFor="expense-search">Buscar gasto</label><input id="expense-search" type="search" placeholder="Buscar por nome ou categoria" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
@@ -83,8 +100,19 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
         }));
         setSelected(null);
       }} />
+      <BudgetForm key={budgetEditor === "new" ? "new" : budgetEditor?.id ?? "none"} budget={budgetEditor === "new" ? undefined : budgetEditor ?? undefined} open={Boolean(budgetEditor)} onClose={() => setBudgetEditor(null)} onSave={(budget) => {
+        updateData((current) => ({ ...current, budgets: [...current.budgets.filter((item) => item.id !== budget.id), budget] }));
+        setBudgetEditor(null);
+      }} />
     </div>
   );
+}
+
+function BudgetForm({ budget, open, onClose, onSave }: { budget?: Budget; open: boolean; onClose: () => void; onSave: (budget: Budget) => void }) {
+  const [category, setCategory] = useState(budget?.category ?? categories[0]);
+  const [limit, setLimit] = useState(budget ? (budget.monthlyLimitCents / 100).toFixed(2).replace(".", ",") : "");
+  const [currency, setCurrency] = useState<Currency>(budget?.currency ?? "BRL");
+  return <Modal open={open} title={budget ? "Editar teto mensal" : "Novo teto mensal"} description="O progresso considera as despesas do mês atual." onClose={onClose}><form className="form-grid" onSubmit={(event: FormEvent) => { event.preventDefault(); onSave({ id: budget?.id ?? crypto.randomUUID(), category, monthlyLimitCents: parseMoney(limit), currency }); }}><div className="field"><label htmlFor="budget-category">Categoria</label><select className="select" id="budget-category" value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select></div><div className="form-row"><div className="field"><label htmlFor="budget-limit">Teto mensal</label><input className="input" id="budget-limit" inputMode="decimal" value={limit} onChange={(event) => setLimit(event.target.value)} placeholder="1.000,00" required /></div><div className="field"><label htmlFor="budget-currency">Moeda</label><select className="select" id="budget-currency" value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}><option value="BRL">Real (BRL)</option><option value="USD">Dólar (USD)</option></select></div></div><div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit">Salvar teto</button></div></form></Modal>;
 }
 
 function TransactionEditor({ transaction, shared, onClose, onSave }: { transaction: Transaction | null; shared?: SharedExpense; onClose: () => void; onSave: (transaction: Transaction, shared?: SharedExpense) => void }) {

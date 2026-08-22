@@ -3,6 +3,7 @@ import type { FinanceData } from "@/lib/types";
 export const emptyFinanceData: FinanceData = {
   accounts: [],
   transactions: [],
+  budgets: [],
   recurring: [],
   boletos: [],
   sharedExpenses: [],

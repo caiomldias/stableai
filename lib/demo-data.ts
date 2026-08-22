@@ -97,6 +97,11 @@ export const demoData: FinanceData = {
       originalCategory: "Trabalho",
     },
   ],
+  budgets: [
+    { id: "budget-food", category: "Alimentação", monthlyLimitCents: 100_000, currency: "BRL" },
+    { id: "budget-home", category: "Casa", monthlyLimitCents: 80_000, currency: "BRL" },
+    { id: "budget-transport", category: "Transporte", monthlyLimitCents: 30_000, currency: "BRL" },
+  ],
   recurring: [
     {
       id: "rec-internet",

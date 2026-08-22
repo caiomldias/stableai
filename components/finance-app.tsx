@@ -55,7 +55,10 @@ export function FinanceApp({
     if (!demo || typeof window === "undefined") return demo ? demoData : emptyFinanceData;
     const saved = window.localStorage.getItem("stable-ia-demo");
     if (!saved) return demoData;
-    try { return JSON.parse(saved) as FinanceData; }
+    try {
+      const parsed = JSON.parse(saved) as Partial<FinanceData>;
+      return { ...demoData, ...parsed, budgets: parsed.budgets ?? demoData.budgets };
+    }
     catch { window.localStorage.removeItem("stable-ia-demo"); return demoData; }
   });
   const [loading, setLoading] = useState(Boolean(session));

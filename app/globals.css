@@ -577,6 +577,29 @@ a { color: inherit; text-decoration: none; }
 .period-total { display: grid; gap: 3px; text-align: right; }
 .period-total small { color: var(--text-muted); }
 .period-total strong { font: 700 1.25rem var(--font-geist-mono); }
+.budget-section { display: grid; gap: 14px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.section-heading h3 { margin: 0; font-size: 1rem; }
+.section-heading p { margin: 5px 0 0; color: var(--text-muted); font-size: .84rem; }
+.budget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 12px; }
+.budget-card { padding: 18px; display: grid; gap: 16px; }
+.budget-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 11px; }
+.budget-top > div:nth-child(2) { display: grid; gap: 3px; }
+.budget-top small { color: var(--text-muted); font-size: .72rem; }
+.budget-success { color: var(--success); background: rgba(111, 211, 162, .1); }
+.budget-warning { color: var(--warning); background: rgba(241, 199, 124, .1); }
+.budget-danger { color: var(--danger); background: rgba(239, 140, 146, .1); }
+.budget-actions { display: flex; gap: 5px; }
+.budget-actions button { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.budget-actions button:hover { background: var(--navy-800); color: var(--white-cold); }
+.budget-values { display: flex; justify-content: space-between; gap: 12px; font: .78rem var(--font-geist-mono); }
+.budget-values span { color: var(--text-muted); }
+.budget-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #06131f; }
+.budget-progress span { display: block; height: 100%; border-radius: inherit; }
+.budget-progress.success span { background: var(--success); }
+.budget-progress.warning span { background: var(--warning); }
+.budget-progress.danger span { background: var(--danger); }
+.budget-empty { min-height: 140px; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--text-muted); }
 .expense-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 14px; align-items: center; }
 .search-box { position: relative; }
 .search-box svg { position: absolute; left: 15px; top: 14px; color: var(--text-muted); }
@@ -630,6 +653,7 @@ a { color: inherit; text-decoration: none; }
   .donut-layout { grid-template-columns: 1fr 1fr; padding-inline: 10px; }
   .lower-grid { grid-template-columns: 1fr; }
   .expense-toolbar { grid-template-columns: 1fr; }
+  .section-heading { align-items: flex-start; }
   .filter-scroll { margin-inline: -16px; padding: 0 16px; }
   .transaction-head { padding-inline: 14px; }
   .transaction-row { padding-inline: 13px; gap: 10px; }

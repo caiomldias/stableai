@@ -1,4 +1,5 @@
 import type {
+  Budget,
   Currency,
   Frequency,
   PurchaseGoal,
@@ -144,6 +145,28 @@ export function totalsByCurrency(transactions: Transaction[]) {
       expenseCents: scoped
         .filter((item) => item.flow === "EXPENSE")
         .reduce((sum, item) => sum + item.amountCents, 0),
+    };
+  });
+}
+
+export function computeBudgetUsage(transactions: Transaction[], budgets: Budget[], refDate = new Date()) {
+  const year = refDate.getFullYear();
+  const month = refDate.getMonth();
+  return budgets.map((budget) => {
+    const spentCents = transactions
+      .filter((item) => {
+        const date = safeDate(item.date);
+        return item.flow === "EXPENSE"
+          && item.currency === budget.currency
+          && item.category === budget.category
+          && date?.getFullYear() === year
+          && date.getMonth() === month;
+      })
+      .reduce((sum, item) => sum + item.amountCents, 0);
+    return {
+      ...budget,
+      spentCents,
+      percentage: budget.monthlyLimitCents > 0 ? (spentCents / budget.monthlyLimitCents) * 100 : 0,
     };
   });
 }
