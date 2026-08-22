@@ -103,7 +103,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
         </div>
       </section>
 
-      <TransactionEditor key={selected?.id ?? "none"} transaction={selected} shared={selected ? data.sharedExpenses.find((item) => item.transactionId === selected.id) : undefined} onClose={() => setSelected(null)} onSave={(transaction, shared) => {
+      <TransactionEditor key={`transaction-${selected?.id ?? "none"}`} transaction={selected} shared={selected ? data.sharedExpenses.find((item) => item.transactionId === selected.id) : undefined} onClose={() => setSelected(null)} onSave={(transaction, shared) => {
         updateData((current) => ({
           ...current,
           transactions: current.transactions.map((item) => item.id === transaction.id ? transaction : item),
@@ -113,7 +113,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
         }));
         setSelected(null);
       }} />
-      <BudgetForm key={budgetEditor === "new" ? "new" : budgetEditor?.id ?? "none"} budget={budgetEditor === "new" ? undefined : budgetEditor ?? undefined} open={Boolean(budgetEditor)} onClose={() => setBudgetEditor(null)} onSave={(budget) => {
+      <BudgetForm key={`budget-${budgetEditor === "new" ? "new" : budgetEditor?.id ?? "none"}`} budget={budgetEditor === "new" ? undefined : budgetEditor ?? undefined} open={Boolean(budgetEditor)} onClose={() => setBudgetEditor(null)} onSave={(budget) => {
         updateData((current) => ({ ...current, budgets: [...current.budgets.filter((item) => item.id !== budget.id), budget] }));
         setBudgetEditor(null);
       }} />
