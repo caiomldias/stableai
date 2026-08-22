@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   Bank,
   Barcode,
@@ -18,6 +18,12 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { PluggyConnectButton } from "@/components/pluggy-connect-button";
+import {
+  currentPushSubscription,
+  subscribeToPush,
+  supportsWebPush,
+  unsubscribeFromPush,
+} from "@/components/service-worker-registration";
 import { Modal } from "@/components/ui/modal";
 import { fullDate, money, parseMoney, shortDate } from "@/lib/finance";
 import type { Boleto, Connection, Currency, FinanceData } from "@/lib/types";
@@ -68,7 +74,7 @@ export function MoreView({ data, updateData, accessToken, demo, onSignOut, onNot
     {tab === "recurring" && <Recurring data={data} updateData={updateData} />}
     {tab === "charges" && <Charges data={data} updateData={updateData} />}
     {tab === "connections" && <Connections data={data} accessToken={accessToken} onStatus={onNotice} onDisconnect={setDisconnect} />}
-    {tab === "settings" && <Settings data={data} updateData={updateData} demo={demo} onSignOut={onSignOut} />}
+    {tab === "settings" && <Settings data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={onSignOut} onNotice={onNotice} />}
 
     <BoletoForm open={billOpen} onClose={() => setBillOpen(false)} onSubmit={(item) => { updateData((current) => ({ ...current, boletos: [...current.boletos, item] })); setBillOpen(false); }} />
     <DisconnectModal connection={disconnect} onClose={() => setDisconnect(null)} onKeep={() => disconnectInstitution(false)} onDelete={() => disconnectInstitution(true)} />
@@ -93,17 +99,37 @@ function Connections({ data, accessToken, onStatus, onDisconnect }: { data: Fina
   return <section className="stack"><div className="connection-hero"><div><span className="feature-icon"><CloudArrowDown size={27} /></span><h3>Conecte suas instituições com segurança</h3><p>A autenticação acontece dentro do Pluggy Connect. O StableAI recebe somente os dados autorizados.</p></div><PluggyConnectButton accessToken={accessToken} onStatus={onStatus} /></div><div className="panel item-list connection-list">{data.connections.map((item) => <article key={item.id}><span className="row-icon"><Bank size={21} /></span><div><strong>{item.institution}</strong><small>{item.products.join(", ")}<span>•</span>{item.lastSyncAt ? `Sincronizado ${shortDate(item.lastSyncAt)}` : "Aguardando sincronização"}</small></div><div className="item-actions"><span className={`connection-status ${item.status.toLocaleLowerCase()}`}>{item.status === "CONNECTED" ? "Conectado" : item.status === "SYNCING" ? "Sincronizando" : "Atenção"}</span><button className="inline-danger" type="button" onClick={() => onDisconnect(item)}>Desconectar</button></div></article>)}{!data.connections.length && <ListEmpty icon={Bank} text="Nenhuma instituição conectada." />}</div></section>;
 }
 
-function Settings({ data, updateData, demo, onSignOut }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; demo: boolean; onSignOut: () => void }) {
+function Settings({ data, updateData, accessToken, demo, onSignOut, onNotice }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; accessToken?: string; demo: boolean; onSignOut: () => void; onNotice: (message: string) => void }) {
   const [installInfo, setInstallInfo] = useState(false);
-  async function toggle(key: "inApp" | "email" | "push", checked: boolean) {
-    if (key === "push" && checked) {
-      if (typeof Notification === "undefined") return;
-      const permission = await Notification.requestPermission();
-      checked = permission === "granted";
-    }
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    const supported = supportsWebPush() && !demo && Boolean(accessToken);
+    Promise.resolve().then(() => setPushSupported(supported));
+    if (supported) currentPushSubscription().then((value) => setPushEnabled(Boolean(value))).catch(() => undefined);
+  }, [accessToken, demo]);
+
+  function toggle(key: "inApp" | "email", checked: boolean) {
     updateData((current) => ({ ...current, notifications: { ...current.notifications, [key]: checked } }));
   }
-  return <section className="settings-grid"><article className="panel panel-pad"><h3>Notificações</h3><p className="settings-description">Escolha como receber lembretes.</p>{([['inApp', 'Dentro do aplicativo'], ['email', 'E-mail'], ['push', 'Notificação do navegador']] as const).map(([key, label]) => <label className="settings-toggle" key={key}><span><Bell size={19} /><strong>{label}</strong></span><input type="checkbox" checked={data.notifications[key]} onChange={(event) => toggle(key, event.target.checked)} /></label>)}<div className="field days-field"><label htmlFor="days-before">Avisar com antecedência</label><select className="select" id="days-before" value={data.notifications.daysBefore} onChange={(event) => updateData((current) => ({ ...current, notifications: { ...current.notifications, daysBefore: Number(event.target.value) } }))}><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option></select></div></article><article className="panel panel-pad"><h3>Aplicativo e dados</h3><p className="settings-description">Instale no celular ou encerre a sessão.</p><button className="settings-action" type="button" onClick={() => setInstallInfo((value) => !value)}><span><DownloadSimple size={21} /><span><strong>Instalar StableAI</strong><small>Android e iOS</small></span></span></button>{installInfo && <div className="install-guide"><strong>No iPhone</strong><p>Abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</p><strong>No Android</strong><p>Abra no Chrome, toque no menu e escolha “Instalar app”.</p></div>}<button className="settings-action" type="button" onClick={() => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "stable-ia-dados.json"; anchor.click(); URL.revokeObjectURL(url); }}><span><CloudArrowDown size={21} /><span><strong>Exportar meus dados</strong><small>Arquivo JSON</small></span></span></button><button className="settings-action danger-action" type="button" onClick={onSignOut}><span><SignOut size={21} /><span><strong>{demo ? "Sair da demonstração" : "Encerrar sessão"}</strong><small>Nenhum dado é apagado</small></span></span></button></article></section>;
+
+  async function togglePush(checked: boolean) {
+    if (!accessToken || pushBusy) return;
+    setPushBusy(true);
+    try {
+      const testSent = checked ? await subscribeToPush(accessToken) : (await unsubscribeFromPush(accessToken), false);
+      setPushEnabled(checked);
+      updateData((current) => ({ ...current, notifications: { ...current.notifications, push: checked } }));
+      onNotice(checked ? (testSent ? "Notificações ativadas. Enviamos um teste." : "Notificações ativadas.") : "Notificações desativadas.");
+    } catch (error) {
+      onNotice(error instanceof Error ? error.message : "Não foi possível alterar as notificações.");
+    } finally {
+      setPushBusy(false);
+    }
+  }
+  return <section className="settings-grid"><article className="panel panel-pad"><h3>Notificações</h3><p className="settings-description">Escolha como receber lembretes.</p>{([['inApp', 'Dentro do aplicativo'], ['email', 'E-mail']] as const).map(([key, label]) => <label className="settings-toggle" key={key}><span><Bell size={19} /><strong>{label}</strong></span><input type="checkbox" checked={data.notifications[key]} onChange={(event) => toggle(key, event.target.checked)} /></label>)}{pushSupported && <label className="settings-toggle"><span><Bell size={19} /><strong>Notificação do navegador</strong></span><input type="checkbox" checked={pushEnabled} disabled={pushBusy} onChange={(event) => togglePush(event.target.checked)} /></label>}<div className="field days-field"><label htmlFor="days-before">Avisar com antecedência</label><select className="select" id="days-before" value={data.notifications.daysBefore} onChange={(event) => updateData((current) => ({ ...current, notifications: { ...current.notifications, daysBefore: Number(event.target.value) } }))}><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option></select></div></article><article className="panel panel-pad"><h3>Aplicativo e dados</h3><p className="settings-description">Instale no celular ou encerre a sessão.</p><button className="settings-action" type="button" onClick={() => setInstallInfo((value) => !value)}><span><DownloadSimple size={21} /><span><strong>Instalar StableAI</strong><small>Android e iOS</small></span></span></button>{installInfo && <div className="install-guide"><strong>No iPhone</strong><p>Abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</p><strong>No Android</strong><p>Abra no Chrome, toque no menu e escolha “Instalar app”.</p></div>}<button className="settings-action" type="button" onClick={() => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "stable-ia-dados.json"; anchor.click(); URL.revokeObjectURL(url); }}><span><CloudArrowDown size={21} /><span><strong>Exportar meus dados</strong><small>Arquivo JSON</small></span></span></button><button className="settings-action danger-action" type="button" onClick={onSignOut}><span><SignOut size={21} /><span><strong>{demo ? "Sair da demonstração" : "Encerrar sessão"}</strong><small>Nenhum dado é apagado</small></span></span></button></article></section>;
 }
 
 function BoletoForm({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (item: Boleto) => void }) { const [description, setDescription] = useState(""); const [issuer, setIssuer] = useState(""); const [amount, setAmount] = useState(""); const [dueDate, setDueDate] = useState(""); const [currency, setCurrency] = useState<Currency>("BRL"); const [line, setLine] = useState(""); return <Modal open={open} title="Adicionar boleto" description="Use quando seu banco não fornecer este dado pelo DDA." onClose={onClose}><form className="form-grid" onSubmit={(event: FormEvent) => { event.preventDefault(); onSubmit({ id: crypto.randomUUID(), description, issuer, amountCents: parseMoney(amount), currency, dueDate, digitableLine: line || undefined, status: "PENDING", source: "MANUAL" }); }}><div className="field"><label htmlFor="bill-description">Descrição</label><input className="input" id="bill-description" value={description} onChange={(event) => setDescription(event.target.value)} required /></div><div className="field"><label htmlFor="bill-issuer">Beneficiário</label><input className="input" id="bill-issuer" value={issuer} onChange={(event) => setIssuer(event.target.value)} required /></div><div className="form-row"><div className="field"><label htmlFor="bill-amount">Valor</label><input className="input" id="bill-amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} required /></div><div className="field"><label htmlFor="bill-currency">Moeda</label><select className="select" id="bill-currency" value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}><option value="BRL">BRL</option><option value="USD">USD</option></select></div></div><div className="field"><label htmlFor="bill-due">Vencimento</label><input className="input" id="bill-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required /></div><div className="field"><label htmlFor="bill-line">Linha digitável (opcional)</label><input className="input" id="bill-line" inputMode="numeric" value={line} onChange={(event) => setLine(event.target.value)} /></div><div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit">Salvar</button></div></form></Modal>; }

@@ -85,14 +85,6 @@ export function FinanceApp({
     ];
   }, [data]);
 
-  useEffect(() => {
-    if (!data.notifications.push || !alerts.length || typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    const key = `stable-alert-${alerts[0].id}`;
-    if (window.sessionStorage.getItem(key)) return;
-    new Notification(alerts[0].title, { body: `${alerts[0].detail}. ${alerts[0].amount}`, icon: "/icon-192.png" });
-    window.sessionStorage.setItem(key, "shown");
-  }, [alerts, data.notifications.push]);
-
   const setView = useCallback((next: AppView) => {
     setViewState(next);
     const url = new URL(window.location.href);

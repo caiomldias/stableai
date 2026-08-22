@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { money, shortDate } from "@/lib/finance";
 import type { FinanceData } from "@/lib/types";
 import { getServerEnv } from "@/lib/server-env";
+import { sendWebPush, type StoredPushSubscription } from "@/lib/web-push";
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] || character);
@@ -43,4 +44,60 @@ export async function sendReminderEmail(admin: SupabaseClient, userId: string, d
   if (!response.ok) throw new Error("Falha ao enviar lembrete por e-mail.");
   await admin.from("audit_events").insert({ user_id: userId, action: "notification.email", target_type: "daily_reminder", target_id: targetId, metadata: { count: reminders.length } });
   return true;
+}
+
+export async function sendReminderPush(admin: SupabaseClient, userId: string, data: FinanceData) {
+  if (!data.notifications.push) return 0;
+  const reminders = dueReminders(data);
+  if (!reminders.length) return 0;
+  const targetId = `daily-${new Date().toISOString().slice(0, 10)}`;
+  const { data: sent } = await admin
+    .from("audit_events")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("action", "notification.push")
+    .eq("target_id", targetId)
+    .maybeSingle();
+  if (sent) return 0;
+
+  const { data: subscriptions, error } = await admin
+    .from("push_subscriptions")
+    .select("endpoint,p256dh,auth")
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+
+  const first = reminders[0];
+  const body = reminders.length === 1
+    ? `${first.detail}: ${first.amount}`
+    : `${first.detail}: ${first.amount} e mais ${reminders.length - 1}.`;
+  let delivered = 0;
+
+  for (const subscription of (subscriptions ?? []) as StoredPushSubscription[]) {
+    try {
+      const response = await sendWebPush(subscription, {
+        title: first.title,
+        body,
+        url: "/?view=more",
+        tag: targetId,
+      });
+      if (response.ok) delivered += 1;
+      if (response.status === 404 || response.status === 410) {
+        await admin.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", subscription.endpoint);
+      }
+    } catch {
+      // Uma assinatura inválida não bloqueia as demais notificações do usuário.
+    }
+  }
+
+  if (delivered > 0) {
+    await admin.from("audit_events").insert({
+      user_id: userId,
+      action: "notification.push",
+      target_type: "daily_reminder",
+      target_id: targetId,
+      metadata: { count: reminders.length, delivered },
+    });
+  }
+
+  return delivered;
 }

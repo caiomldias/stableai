@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncPluggyItem } from "@/lib/pluggy";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { loadFinanceState } from "@/lib/server-finance";
-import { sendReminderEmail } from "@/lib/reminders";
+import { sendReminderEmail, sendReminderPush } from "@/lib/reminders";
 import { getServerEnv } from "@/lib/server-env";
 import { timingSafeMatch } from "@/lib/timing-safe";
 
@@ -24,11 +24,20 @@ export async function GET(request: NextRequest) {
       results.push({ itemId: connection.pluggy_item_id, ok: false, error: cause instanceof Error ? cause.message : "Falha" });
     }
   }
-  const userIds = [...new Set((connections ?? []).map((item) => item.user_id as string))];
+  const { data: pushUsers } = await admin.from("push_subscriptions").select("user_id");
+  const userIds = [...new Set([
+    ...(connections ?? []).map((item) => item.user_id as string),
+    ...(pushUsers ?? []).map((item) => item.user_id as string),
+  ])];
   let emailsSent = 0;
+  let pushesSent = 0;
   for (const userId of userIds) {
-    try { if (await sendReminderEmail(admin, userId, await loadFinanceState(admin, userId))) emailsSent += 1; }
-    catch { /* A sincronização não falha quando o provedor de e-mail está indisponível. */ }
+    try {
+      const finance = await loadFinanceState(admin, userId);
+      if (await sendReminderEmail(admin, userId, finance)) emailsSent += 1;
+      pushesSent += await sendReminderPush(admin, userId, finance);
+    }
+    catch { /* A sincronização não falha quando um provedor de lembretes está indisponível. */ }
   }
-  return NextResponse.json({ syncedAt: new Date().toISOString(), results, emailsSent });
+  return NextResponse.json({ syncedAt: new Date().toISOString(), results, emailsSent, pushesSent });
 }
