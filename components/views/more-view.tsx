@@ -1,0 +1,112 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import {
+  Bank,
+  Barcode,
+  Bell,
+  Check,
+  ClockCounterClockwise,
+  CloudArrowDown,
+  CreditCard,
+  DownloadSimple,
+  Info,
+  SignOut,
+  Trash,
+  UserCircle,
+  UserPlus,
+  Warning,
+} from "@phosphor-icons/react";
+import { PluggyConnectButton } from "@/components/pluggy-connect-button";
+import { Modal } from "@/components/ui/modal";
+import { fullDate, money, parseMoney, shortDate } from "@/lib/finance";
+import type { Boleto, Connection, Currency, FinanceData } from "@/lib/types";
+
+type Tab = "bills" | "recurring" | "charges" | "connections" | "settings";
+
+const tabs = [
+  { id: "bills" as const, label: "Boletos", icon: Barcode },
+  { id: "recurring" as const, label: "Recorrentes", icon: ClockCounterClockwise },
+  { id: "charges" as const, label: "Cobranças", icon: UserPlus },
+  { id: "connections" as const, label: "Conexões", icon: Bank },
+  { id: "settings" as const, label: "Ajustes", icon: UserCircle },
+];
+
+export function MoreView({ data, updateData, accessToken, demo, onSignOut, onNotice }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; accessToken?: string; demo: boolean; onSignOut: () => void; onNotice: (message: string) => void }) {
+  const [tab, setTab] = useState<Tab>("bills");
+  const [billOpen, setBillOpen] = useState(false);
+  const [disconnect, setDisconnect] = useState<Connection | null>(null);
+
+  async function disconnectInstitution(deleteData: boolean) {
+    if (!disconnect) return;
+    if (!demo && accessToken && disconnect.itemId) {
+      const response = await fetch("/api/pluggy/connection", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ itemId: disconnect.itemId, deleteData }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) { onNotice(result.error || "Não foi possível desconectar."); return; }
+    }
+    const accountIds = data.accounts.filter((item) => item.institution === disconnect.institution).map((item) => item.id);
+    updateData((current) => ({
+      ...current,
+      connections: current.connections.filter((item) => item.id !== disconnect.id),
+      accounts: deleteData ? current.accounts.filter((item) => !accountIds.includes(item.id)) : current.accounts,
+      transactions: deleteData ? current.transactions.filter((item) => !accountIds.includes(item.accountId)) : current.transactions,
+      investments: deleteData ? current.investments.filter((item) => item.institution !== disconnect.institution) : current.investments,
+    }));
+    setDisconnect(null);
+    onNotice(deleteData ? "Instituição e dados importados foram removidos." : "Instituição desconectada. O histórico foi mantido.");
+  }
+
+  return <div className="stack">
+    <div className="page-heading"><div><h2>Organização e ajustes</h2><p>Boletos, contas recorrentes, cobranças e conexões.</p></div>{tab === "bills" && <button className="button primary" type="button" aria-label="Adicionar boleto" onClick={() => setBillOpen(true)}><Barcode size={18} /><span>Novo boleto</span></button>}</div>
+    <div className="tab-bar more-tabs" role="tablist" aria-label="Mais recursos">{tabs.map((item) => <button role="tab" aria-selected={tab === item.id} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{item.label}</button>)}</div>
+
+    {tab === "bills" && <Bills data={data} />}
+    {tab === "recurring" && <Recurring data={data} updateData={updateData} />}
+    {tab === "charges" && <Charges data={data} updateData={updateData} />}
+    {tab === "connections" && <Connections data={data} accessToken={accessToken} onStatus={onNotice} onDisconnect={setDisconnect} />}
+    {tab === "settings" && <Settings data={data} updateData={updateData} demo={demo} onSignOut={onSignOut} />}
+
+    <BoletoForm open={billOpen} onClose={() => setBillOpen(false)} onSubmit={(item) => { updateData((current) => ({ ...current, boletos: [...current.boletos, item] })); setBillOpen(false); }} />
+    <DisconnectModal connection={disconnect} onClose={() => setDisconnect(null)} onKeep={() => disconnectInstitution(false)} onDelete={() => disconnectInstitution(true)} />
+  </div>;
+}
+
+function Bills({ data }: { data: FinanceData }) {
+  const pending = data.boletos.filter((item) => item.status !== "PAID").reduce((sum, item) => sum + item.amountCents, 0);
+  return <section className="stack"><div className="module-summary"><span className="feature-icon"><Barcode size={26} /></span><div><small>Boletos em aberto</small><strong>{money(pending)}</strong><p>{data.boletos.filter((item) => item.status !== "PAID").length} compromissos encontrados</p></div><span className="coverage-note"><Info size={17} /> A cobertura DDA depende do banco conectado.</span></div><div className="panel item-list">{data.boletos.map((item) => <article key={item.id}><span className="row-icon"><Barcode size={21} /></span><div><strong>{item.description}</strong><small>{item.issuer}<span>•</span>Vence {shortDate(item.dueDate)}<span>•</span>{item.source === "PLUGGY" ? "Importado" : "Manual"}</small></div><div className="item-actions"><strong>{money(item.amountCents, item.currency)}</strong><span className={`status ${item.status.toLocaleLowerCase()}`}>{item.status === "PENDING" ? "Pendente" : item.status === "PAID" ? "Pago" : "Vencido"}</span></div></article>)}{!data.boletos.length && <ListEmpty icon={Barcode} text="Nenhum boleto disponível. Você pode adicionar um manualmente." />}</div></section>;
+}
+
+function Recurring({ data, updateData }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void }) {
+  return <section className="panel item-list">{data.recurring.map((item) => <article key={item.id}><span className="row-icon"><ClockCounterClockwise size={21} /></span><div><strong>{item.description}</strong><small>Próxima cobrança em {fullDate(item.nextDate)}<span>•</span>{Math.round(item.confidence * 100)}% de regularidade</small></div><div className="item-actions"><strong>{money(item.averageAmountCents, item.currency)}</strong><button className={item.confirmed ? "confirmed" : "confirm"} type="button" onClick={() => updateData((current) => ({ ...current, recurring: current.recurring.map((entry) => entry.id === item.id ? { ...entry, confirmed: !entry.confirmed } : entry) }))}>{item.confirmed ? <><Check size={15} /> Confirmada</> : "Confirmar"}</button></div></article>)}{!data.recurring.length && <ListEmpty icon={ClockCounterClockwise} text="Recorrências aparecem depois de pelo menos três cobranças semelhantes." />}</section>;
+}
+
+function Charges({ data, updateData }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void }) {
+  const pending = data.sharedExpenses.filter((item) => item.status !== "PAID");
+  return <section className="stack"><div className="module-summary charge-summary"><span className="feature-icon"><UserPlus size={26} /></span><div><small>Total para receber</small><strong>{money(pending.reduce((sum, item) => sum + item.amountCents, 0))}</strong><p>Você marca o pagamento manualmente.</p></div></div><div className="panel item-list">{data.sharedExpenses.map((item) => { const transaction = data.transactions.find((entry) => entry.id === item.transactionId); return <article key={item.id}><span className="row-icon"><CreditCard size={21} /></span><div><strong>{item.person}</strong><small>{transaction?.description || "Compra no cartão"}<span>•</span>Lembrar {shortDate(item.dueDate)}</small></div><div className="item-actions"><strong>{money(item.amountCents, item.currency)}</strong><button className={item.status === "PAID" ? "confirmed" : "confirm"} type="button" onClick={() => updateData((current) => ({ ...current, sharedExpenses: current.sharedExpenses.map((entry) => entry.id === item.id ? { ...entry, status: entry.status === "PAID" ? "PENDING" : "PAID" } : entry) }))}>{item.status === "PAID" ? <><Check size={15} /> Pago</> : "Marcar como pago"}</button></div></article>; })}{!data.sharedExpenses.length && <ListEmpty icon={UserPlus} text="Marque uma compra do cartão como valor a cobrar." />}</div></section>;
+}
+
+function Connections({ data, accessToken, onStatus, onDisconnect }: { data: FinanceData; accessToken?: string; onStatus: (message: string) => void; onDisconnect: (item: Connection) => void }) {
+  return <section className="stack"><div className="connection-hero"><div><span className="feature-icon"><CloudArrowDown size={27} /></span><h3>Conecte suas instituições com segurança</h3><p>A autenticação acontece dentro do Pluggy Connect. O StableAI recebe somente os dados autorizados.</p></div><PluggyConnectButton accessToken={accessToken} onStatus={onStatus} /></div><div className="panel item-list connection-list">{data.connections.map((item) => <article key={item.id}><span className="row-icon"><Bank size={21} /></span><div><strong>{item.institution}</strong><small>{item.products.join(", ")}<span>•</span>{item.lastSyncAt ? `Sincronizado ${shortDate(item.lastSyncAt)}` : "Aguardando sincronização"}</small></div><div className="item-actions"><span className={`connection-status ${item.status.toLocaleLowerCase()}`}>{item.status === "CONNECTED" ? "Conectado" : item.status === "SYNCING" ? "Sincronizando" : "Atenção"}</span><button className="inline-danger" type="button" onClick={() => onDisconnect(item)}>Desconectar</button></div></article>)}{!data.connections.length && <ListEmpty icon={Bank} text="Nenhuma instituição conectada." />}</div></section>;
+}
+
+function Settings({ data, updateData, demo, onSignOut }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; demo: boolean; onSignOut: () => void }) {
+  const [installInfo, setInstallInfo] = useState(false);
+  async function toggle(key: "inApp" | "email" | "push", checked: boolean) {
+    if (key === "push" && checked) {
+      if (typeof Notification === "undefined") return;
+      const permission = await Notification.requestPermission();
+      checked = permission === "granted";
+    }
+    updateData((current) => ({ ...current, notifications: { ...current.notifications, [key]: checked } }));
+  }
+  return <section className="settings-grid"><article className="panel panel-pad"><h3>Notificações</h3><p className="settings-description">Escolha como receber lembretes.</p>{([['inApp', 'Dentro do aplicativo'], ['email', 'E-mail'], ['push', 'Notificação do navegador']] as const).map(([key, label]) => <label className="settings-toggle" key={key}><span><Bell size={19} /><strong>{label}</strong></span><input type="checkbox" checked={data.notifications[key]} onChange={(event) => toggle(key, event.target.checked)} /></label>)}<div className="field days-field"><label htmlFor="days-before">Avisar com antecedência</label><select className="select" id="days-before" value={data.notifications.daysBefore} onChange={(event) => updateData((current) => ({ ...current, notifications: { ...current.notifications, daysBefore: Number(event.target.value) } }))}><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option></select></div></article><article className="panel panel-pad"><h3>Aplicativo e dados</h3><p className="settings-description">Instale no celular ou encerre a sessão.</p><button className="settings-action" type="button" onClick={() => setInstallInfo((value) => !value)}><span><DownloadSimple size={21} /><span><strong>Instalar StableAI</strong><small>Android e iOS</small></span></span></button>{installInfo && <div className="install-guide"><strong>No iPhone</strong><p>Abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</p><strong>No Android</strong><p>Abra no Chrome, toque no menu e escolha “Instalar app”.</p></div>}<button className="settings-action" type="button" onClick={() => { const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "stable-ia-dados.json"; anchor.click(); URL.revokeObjectURL(url); }}><span><CloudArrowDown size={21} /><span><strong>Exportar meus dados</strong><small>Arquivo JSON</small></span></span></button><button className="settings-action danger-action" type="button" onClick={onSignOut}><span><SignOut size={21} /><span><strong>{demo ? "Sair da demonstração" : "Encerrar sessão"}</strong><small>Nenhum dado é apagado</small></span></span></button></article></section>;
+}
+
+function BoletoForm({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (item: Boleto) => void }) { const [description, setDescription] = useState(""); const [issuer, setIssuer] = useState(""); const [amount, setAmount] = useState(""); const [dueDate, setDueDate] = useState(""); const [currency, setCurrency] = useState<Currency>("BRL"); const [line, setLine] = useState(""); return <Modal open={open} title="Adicionar boleto" description="Use quando seu banco não fornecer este dado pelo DDA." onClose={onClose}><form className="form-grid" onSubmit={(event: FormEvent) => { event.preventDefault(); onSubmit({ id: crypto.randomUUID(), description, issuer, amountCents: parseMoney(amount), currency, dueDate, digitableLine: line || undefined, status: "PENDING", source: "MANUAL" }); }}><div className="field"><label htmlFor="bill-description">Descrição</label><input className="input" id="bill-description" value={description} onChange={(event) => setDescription(event.target.value)} required /></div><div className="field"><label htmlFor="bill-issuer">Beneficiário</label><input className="input" id="bill-issuer" value={issuer} onChange={(event) => setIssuer(event.target.value)} required /></div><div className="form-row"><div className="field"><label htmlFor="bill-amount">Valor</label><input className="input" id="bill-amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} required /></div><div className="field"><label htmlFor="bill-currency">Moeda</label><select className="select" id="bill-currency" value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}><option value="BRL">BRL</option><option value="USD">USD</option></select></div></div><div className="field"><label htmlFor="bill-due">Vencimento</label><input className="input" id="bill-due" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} required /></div><div className="field"><label htmlFor="bill-line">Linha digitável (opcional)</label><input className="input" id="bill-line" inputMode="numeric" value={line} onChange={(event) => setLine(event.target.value)} /></div><div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit">Salvar</button></div></form></Modal>; }
+
+function DisconnectModal({ connection, onClose, onKeep, onDelete }: { connection: Connection | null; onClose: () => void; onKeep: () => void; onDelete: () => void }) { return <Modal open={Boolean(connection)} title={`Desconectar ${connection?.institution ?? "instituição"}`} description="Escolha o que deve acontecer com o histórico importado." onClose={onClose}><div className="disconnect-options"><button type="button" onClick={onKeep}><ClockCounterClockwise size={24} /><span><strong>Manter histórico</strong><small>A instituição é removida, mas os lançamentos continuam visíveis.</small></span></button><button type="button" className="delete-option" onClick={onDelete}><Trash size={24} /><span><strong>Apagar dados importados</strong><small>Contas, transações e investimentos desta instituição serão removidos.</small></span></button><p><Warning size={18} /> Anotações que dependem de uma transação apagada também podem perder contexto.</p></div></Modal>; }
+function ListEmpty({ icon: Icon, text }: { icon: typeof Barcode; text: string }) { return <div className="list-empty"><Icon size={27} /><span>{text}</span></div>; }
