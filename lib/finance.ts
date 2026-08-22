@@ -149,6 +149,29 @@ export function totalsByCurrency(transactions: Transaction[]) {
   });
 }
 
+export interface TransactionFilters {
+  search?: string;
+  kind?: "ALL" | TransactionKind;
+  dateFrom?: string;
+  dateTo?: string;
+  category?: string;
+  accountId?: string;
+}
+
+export function filterTransactions(transactions: Transaction[], filters: TransactionFilters) {
+  const search = filters.search?.trim().toLocaleLowerCase("pt-BR") ?? "";
+  return transactions.filter((transaction) => {
+    const searchable = `${transaction.description} ${transaction.merchant ?? ""} ${transaction.category}`
+      .toLocaleLowerCase("pt-BR");
+    return (!search || searchable.includes(search))
+      && (!filters.kind || filters.kind === "ALL" || transaction.kind === filters.kind)
+      && (!filters.dateFrom || transaction.date >= filters.dateFrom)
+      && (!filters.dateTo || transaction.date <= filters.dateTo)
+      && (!filters.category || transaction.category === filters.category)
+      && (!filters.accountId || transaction.accountId === filters.accountId);
+  });
+}
+
 export function computeBudgetUsage(transactions: Transaction[], budgets: Budget[], refDate = new Date()) {
   const year = refDate.getFullYear();
   const month = refDate.getMonth();

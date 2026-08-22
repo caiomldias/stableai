@@ -17,7 +17,7 @@ import {
   Wallet,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
-import { classifyTransaction, computeBudgetUsage, fullDate, money, parseMoney, shortDate } from "@/lib/finance";
+import { classifyTransaction, computeBudgetUsage, filterTransactions, fullDate, money, parseMoney, shortDate, totalsByCurrency } from "@/lib/finance";
 import type { Budget, Currency, FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
 
 const filters: { id: "ALL" | TransactionKind; label: string }[] = [
@@ -41,21 +41,32 @@ const kindIcon = (kind: TransactionKind) => {
 export function ExpensesView({ data, updateData }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void }) {
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("ALL");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [accountFilter, setAccountFilter] = useState("");
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [budgetEditor, setBudgetEditor] = useState<Budget | "new" | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
 
-  const visible = useMemo(() => data.transactions
-    .filter((item) => filter === "ALL" || item.kind === filter)
-    .filter((item) => `${item.description} ${item.category}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")))
-    .sort((a, b) => b.date.localeCompare(a.date)), [data.transactions, filter, search]);
+  const visible = useMemo(() => filterTransactions(data.transactions, {
+    search,
+    kind: filter,
+    dateFrom,
+    dateTo,
+    category: categoryFilter,
+    accountId: accountFilter,
+  }).sort((a, b) => b.date.localeCompare(a.date)), [accountFilter, categoryFilter, data.transactions, dateFrom, dateTo, filter, search]);
 
-  const expenseTotal = visible.filter((item) => item.flow === "EXPENSE" && item.currency === "BRL").reduce((sum, item) => sum + item.amountCents, 0);
+  const expenseTotals = totalsByCurrency(visible).filter((item) => item.currency === "BRL" || item.expenseCents > 0);
   const budgetUsage = useMemo(() => computeBudgetUsage(data.transactions, data.budgets), [data.transactions, data.budgets]);
+  const availableCategories = useMemo(() => [...new Set(data.transactions.map((item) => item.category))].sort((a, b) => a.localeCompare(b, "pt-BR")), [data.transactions]);
+  const hasManualAccount = data.transactions.some((item) => item.accountId === "manual");
+  const filtersActive = Boolean(search || filter !== "ALL" || dateFrom || dateTo || categoryFilter || accountFilter);
 
   return (
     <div className="stack">
-      <div className="page-heading"><div><h2>Gastos e movimentações</h2><p>Encontre, classifique e anote cada lançamento.</p></div><div className="expense-heading-actions"><span className="period-total"><small>Total filtrado</small><strong>{money(expenseTotal)}</strong></span><button className="button primary" type="button" aria-label="Adicionar lançamento manual" onClick={() => setManualOpen(true)}><Plus size={18} /><span>Adicionar lançamento</span></button></div></div>
+      <div className="page-heading"><div><h2>Gastos e movimentações</h2><p>Encontre, classifique e anote cada lançamento.</p></div><div className="expense-heading-actions"><span className="period-total"><small>Despesas filtradas</small>{expenseTotals.map((total) => <strong key={total.currency}>{money(total.expenseCents, total.currency)}</strong>)}</span><button className="button primary" type="button" aria-label="Adicionar lançamento manual" onClick={() => setManualOpen(true)}><Plus size={18} /><span>Adicionar lançamento</span></button></div></div>
 
       <section className="budget-section">
         <div className="section-heading"><div><h3>Orçamento do mês</h3><p>Defina tetos por categoria e acompanhe o consumo.</p></div><button className="button small ghost" type="button" onClick={() => setBudgetEditor("new")}><Plus size={17} /> Novo teto</button></div>
@@ -69,12 +80,13 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
       </section>
 
       <section className="expense-toolbar">
-        <div className="search-box"><MagnifyingGlass size={20} /><label className="sr-only" htmlFor="expense-search">Buscar gasto</label><input id="expense-search" type="search" placeholder="Buscar por nome ou categoria" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+        <div className="search-box"><MagnifyingGlass size={20} /><label className="sr-only" htmlFor="expense-search">Buscar gasto</label><input id="expense-search" type="search" placeholder="Buscar descrição, estabelecimento ou categoria" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         <div className="filter-scroll" aria-label="Filtrar meio de pagamento">{filters.map((item) => <button key={item.id} type="button" className={filter === item.id ? "active" : ""} onClick={() => setFilter(item.id)}>{item.label}</button>)}</div>
+        <div className="advanced-filters"><label><span>De</span><input className="input" type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} /></label><label><span>Até</span><input className="input" type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} /></label><label><span>Categoria</span><select className="select" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">Todas</option>{availableCategories.map((item) => <option key={item}>{item}</option>)}</select></label><label><span>Conta</span><select className="select" value={accountFilter} onChange={(event) => setAccountFilter(event.target.value)}><option value="">Todas</option>{hasManualAccount && <option value="manual">Dinheiro / manual</option>}{data.accounts.map((item) => <option key={item.id} value={item.id}>{item.institution} • {item.name}</option>)}</select></label>{filtersActive && <button className="button small ghost clear-filters" type="button" onClick={() => { setSearch(""); setFilter("ALL"); setDateFrom(""); setDateTo(""); setCategoryFilter(""); setAccountFilter(""); }}>Limpar</button>}</div>
       </section>
 
       <section className="panel transaction-panel">
-        <div className="transaction-head"><span><SlidersHorizontal size={18} /> {visible.length} movimentações</span><small>Últimos 6 meses</small></div>
+        <div className="transaction-head"><span><SlidersHorizontal size={18} /> {visible.length} movimentações</span><small>{filtersActive ? "Filtros combinados" : "Últimos 6 meses"}</small></div>
         <div className="transaction-list">
           {visible.map((item) => {
             const Icon = kindIcon(item.kind);

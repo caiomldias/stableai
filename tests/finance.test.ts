@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateGoal, classifyTransaction, computeBudgetUsage, parseMoney, shortDate } from "@/lib/finance";
+import { calculateGoal, classifyTransaction, computeBudgetUsage, filterTransactions, parseMoney, shortDate } from "@/lib/finance";
 import type { Transaction } from "@/lib/types";
 
 describe("regras financeiras do MVP", () => {
@@ -39,5 +39,27 @@ describe("regras financeiras do MVP", () => {
     ], [{ id: "budget", category: "Lazer", monthlyLimitCents: 50_000, currency: "BRL" }], new Date("2026-08-22T12:00:00"));
     expect(usage.spentCents).toBe(30_000);
     expect(usage.percentage).toBe(60);
+  });
+
+  it("combina busca, período, categoria e conta", () => {
+    const base: Transaction = {
+      id: "1", source: "PLUGGY", accountId: "conta-a", description: "Compra semanal",
+      merchant: "Mercado Central", amountCents: 10_000, currency: "BRL", date: "2026-08-10",
+      flow: "EXPENSE", kind: "CARD", category: "Alimentação", originalCategory: "Alimentação",
+    };
+    const result = filterTransactions([
+      base,
+      { ...base, id: "2", merchant: "Outra loja", date: "2026-08-12" },
+      { ...base, id: "3", accountId: "conta-b" },
+      { ...base, id: "4", date: "2026-07-31" },
+    ], {
+      search: "mercado central",
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+      category: "Alimentação",
+      accountId: "conta-a",
+    });
+
+    expect(result.map((item) => item.id)).toEqual(["1"]);
   });
 });

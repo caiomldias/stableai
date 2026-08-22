@@ -602,6 +602,10 @@ a { color: inherit; text-decoration: none; }
 .budget-progress.danger span { background: var(--danger); }
 .budget-empty { min-height: 140px; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--text-muted); }
 .expense-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) auto; gap: 14px; align-items: center; }
+.advanced-filters { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)) auto; gap: 10px; align-items: end; }
+.advanced-filters label { display: grid; gap: 6px; color: var(--text-muted); font-size: .75rem; }
+.advanced-filters .input, .advanced-filters .select { min-height: 42px; }
+.clear-filters { min-height: 42px; }
 .search-box { position: relative; }
 .search-box svg { position: absolute; left: 15px; top: 14px; color: var(--text-muted); }
 .search-box input { width: 100%; min-height: 48px; padding: 0 14px 0 44px; border: 1px solid var(--navy-700); border-radius: var(--radius-input); background: var(--navy-850); color: var(--white-cold); }
@@ -655,6 +659,8 @@ a { color: inherit; text-decoration: none; }
   .donut-layout { grid-template-columns: 1fr 1fr; padding-inline: 10px; }
   .lower-grid { grid-template-columns: 1fr; }
   .expense-toolbar { grid-template-columns: 1fr; }
+  .advanced-filters { grid-template-columns: 1fr 1fr; }
+  .clear-filters { width: 100%; }
   .section-heading { align-items: flex-start; }
   .filter-scroll { margin-inline: -16px; padding: 0 16px; }
   .transaction-head { padding-inline: 14px; }
