@@ -9,6 +9,10 @@ export async function loadFinanceState(admin: SupabaseClient, userId: string): P
   const payload = data?.payload;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return structuredClone(emptyFinanceData);
   const result = { ...structuredClone(emptyFinanceData), ...(payload as Partial<FinanceData>) };
+  result.transactions = result.transactions.map((transaction) => ({
+    ...transaction,
+    source: transaction.source ?? "PLUGGY",
+  }));
   result.boletos = await Promise.all(result.boletos.map(async (boleto) => ({ ...boleto, digitableLine: boleto.digitableLine ? await decryptSensitiveText(boleto.digitableLine) : undefined })));
   return result;
 }

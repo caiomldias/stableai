@@ -16,6 +16,7 @@ export interface Account {
 
 export interface Transaction {
   id: string;
+  source: "PLUGGY" | "MANUAL";
   accountId: string;
   description: string;
   merchant?: string;

@@ -25,6 +25,7 @@ const transaction = (
   flow: Transaction["flow"] = "EXPENSE",
 ): Transaction => ({
   id,
+  source: "PLUGGY",
   accountId,
   description,
   merchant: description,
@@ -85,6 +86,7 @@ export const demoData: FinanceData = {
     ...monthlyTransactions,
     {
       id: "usd-software",
+      source: "PLUGGY",
       accountId: "usd-wallet",
       description: "Software subscription",
       merchant: "Design Tools",

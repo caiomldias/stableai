@@ -27,7 +27,7 @@ describe("regras financeiras do MVP", () => {
 
   it("soma apenas despesas da categoria, moeda e mês do orçamento", () => {
     const base: Transaction = {
-      id: "1", accountId: "account", description: "Compra", amountCents: 30_000,
+      id: "1", source: "PLUGGY", accountId: "account", description: "Compra", amountCents: 30_000,
       currency: "BRL", date: "2026-08-10", flow: "EXPENSE", kind: "CARD",
       category: "Lazer", originalCategory: "Outros",
     };

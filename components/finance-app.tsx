@@ -59,7 +59,15 @@ export function FinanceApp({
     if (!saved) return demoData;
     try {
       const parsed = JSON.parse(saved) as Partial<FinanceData>;
-      return { ...demoData, ...parsed, budgets: parsed.budgets ?? demoData.budgets };
+      return {
+        ...demoData,
+        ...parsed,
+        budgets: parsed.budgets ?? demoData.budgets,
+        transactions: (parsed.transactions ?? demoData.transactions).map((transaction) => ({
+          ...transaction,
+          source: transaction.source ?? "PLUGGY",
+        })),
+      };
     }
     catch { window.localStorage.removeItem("stable-ia-demo"); return demoData; }
   });

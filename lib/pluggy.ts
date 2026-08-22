@@ -111,6 +111,7 @@ function mapTransaction(raw: JsonRecord, account: Account): Transaction {
   const kind = classifyTransaction(description, account.type);
   return {
     id: text(raw.id),
+    source: "PLUGGY",
     accountId: account.id,
     description,
     merchant: text(record(raw.merchant).name) || undefined,
@@ -225,7 +226,7 @@ export async function syncPluggyItem(admin: SupabaseClient, userId: string, item
   const previousAccountIds = new Set(state.accounts.filter((entry) => entry.institution === institution).map((entry) => entry.id));
   const previousTransactionIds = new Set(state.transactions.filter((entry) => previousAccountIds.has(entry.accountId)).map((entry) => entry.id));
   state.accounts = [...state.accounts.filter((entry) => entry.institution !== institution), ...accounts];
-  state.transactions = [...state.transactions.filter((entry) => !previousAccountIds.has(entry.accountId)), ...transactions];
+  state.transactions = mergePluggyTransactions(state.transactions, previousAccountIds, transactions);
   state.investments = [...state.investments.filter((entry) => entry.institution !== institution), ...investments];
   state.boletos = [...state.boletos.filter((entry) => entry.source !== "PLUGGY" || !previousTransactionIds.has(entry.id.replace(/^boleto-/, ""))), ...boletos];
   state.recurring = detectRecurring(state.transactions);
@@ -234,4 +235,15 @@ export async function syncPluggyItem(admin: SupabaseClient, userId: string, item
   await saveFinanceState(admin, userId, state);
   await admin.from("audit_events").insert({ user_id: userId, action: "pluggy.sync", target_type: "institution_connection", target_id: connection.id, metadata: { accounts: accounts.length, transactions: transactions.length, investments: investments.length } });
   return { institution, counts: { accounts: accounts.length, transactions: transactions.length, investments: investments.length, boletos: boletos.length } };
+}
+
+export function mergePluggyTransactions(
+  current: Transaction[],
+  replacedAccountIds: ReadonlySet<string>,
+  incoming: Transaction[],
+) {
+  return [
+    ...current.filter((entry) => entry.source === "MANUAL" || !replacedAccountIds.has(entry.accountId)),
+    ...incoming,
+  ];
 }

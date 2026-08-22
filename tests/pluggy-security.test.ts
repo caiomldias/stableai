@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { syncPluggyItem } from "@/lib/pluggy";
+import { mergePluggyTransactions, syncPluggyItem } from "@/lib/pluggy";
+import type { Transaction } from "@/lib/types";
 
 describe("segurança da sincronização Pluggy", () => {
   afterEach(() => {
@@ -23,5 +24,29 @@ describe("segurança da sincronização Pluggy", () => {
     await expect(syncPluggyItem({} as SupabaseClient, "usuario-atacante", "item-da-vitima"))
       .rejects.toThrow("Item não pertence a este usuário.");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserva lançamentos manuais vinculados a uma conta sincronizada", () => {
+    const transaction = (id: string, source: Transaction["source"]): Transaction => ({
+      id,
+      source,
+      accountId: "conta-pluggy",
+      description: id,
+      amountCents: 1_000,
+      currency: "BRL",
+      date: "2026-08-22",
+      flow: "EXPENSE",
+      kind: "OTHER",
+      category: "Outros",
+      originalCategory: "Outros",
+    });
+
+    const result = mergePluggyTransactions(
+      [transaction("manual", "MANUAL"), transaction("antiga", "PLUGGY")],
+      new Set(["conta-pluggy"]),
+      [transaction("nova", "PLUGGY")],
+    );
+
+    expect(result.map((item) => item.id)).toEqual(["manual", "nova"]);
   });
 });

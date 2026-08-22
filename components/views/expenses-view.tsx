@@ -17,7 +17,7 @@ import {
   Wallet,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
-import { computeBudgetUsage, fullDate, money, parseMoney, shortDate } from "@/lib/finance";
+import { classifyTransaction, computeBudgetUsage, fullDate, money, parseMoney, shortDate } from "@/lib/finance";
 import type { Budget, Currency, FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
 
 const filters: { id: "ALL" | TransactionKind; label: string }[] = [
@@ -43,6 +43,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [budgetEditor, setBudgetEditor] = useState<Budget | "new" | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const visible = useMemo(() => data.transactions
     .filter((item) => filter === "ALL" || item.kind === filter)
@@ -54,7 +55,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
 
   return (
     <div className="stack">
-      <div className="page-heading"><div><h2>Gastos e movimentações</h2><p>Encontre, classifique e anote cada lançamento.</p></div><span className="period-total"><small>Total filtrado</small><strong>{money(expenseTotal)}</strong></span></div>
+      <div className="page-heading"><div><h2>Gastos e movimentações</h2><p>Encontre, classifique e anote cada lançamento.</p></div><div className="expense-heading-actions"><span className="period-total"><small>Total filtrado</small><strong>{money(expenseTotal)}</strong></span><button className="button primary" type="button" aria-label="Adicionar lançamento manual" onClick={() => setManualOpen(true)}><Plus size={18} /><span>Adicionar lançamento</span></button></div></div>
 
       <section className="budget-section">
         <div className="section-heading"><div><h3>Orçamento do mês</h3><p>Defina tetos por categoria e acompanhe o consumo.</p></div><button className="button small ghost" type="button" onClick={() => setBudgetEditor("new")}><Plus size={17} /> Novo teto</button></div>
@@ -81,7 +82,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
             return (
               <button key={item.id} type="button" className="transaction-row" onClick={() => setSelected(item)}>
                 <span className={`row-icon kind-${item.kind.toLocaleLowerCase()}`}><Icon size={21} /></span>
-                <span className="transaction-copy"><strong>{item.description}</strong><small>{shortDate(item.date)}<span>•</span>{item.category}{item.installment && <><span>•</span>{item.installment.current}/{item.installment.total}</>}</small>{shared && <em><UserPlus size={14} /> Cobrar {shared.person}</em>}</span>
+                <span className="transaction-copy"><strong>{item.description}{item.source === "MANUAL" && <span className="manual-badge">Manual</span>}</strong><small>{shortDate(item.date)}<span>•</span>{item.category}{item.installment && <><span>•</span>{item.installment.current}/{item.installment.total}</>}</small>{shared && <em><UserPlus size={14} /> Cobrar {shared.person}</em>}</span>
                 <span className={`transaction-value ${item.flow === "INCOME" ? "income" : ""}`}>{item.flow === "INCOME" ? "+" : "-"}{money(item.amountCents, item.currency)}</span>
               </button>
             );
@@ -104,6 +105,10 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
         updateData((current) => ({ ...current, budgets: [...current.budgets.filter((item) => item.id !== budget.id), budget] }));
         setBudgetEditor(null);
       }} />
+      {manualOpen && <ManualTransactionForm open accounts={data.accounts} onClose={() => setManualOpen(false)} onSave={(transaction) => {
+        updateData((current) => ({ ...current, transactions: [transaction, ...current.transactions] }));
+        setManualOpen(false);
+      }} />}
     </div>
   );
 }
@@ -123,7 +128,7 @@ function TransactionEditor({ transaction, shared, onClose, onSave }: { transacti
   const [amount, setAmount] = useState(shared ? money(shared.amountCents).replace("R$", "").trim() : transaction ? (transaction.amountCents / 100).toFixed(2).replace(".", ",") : "");
   const [dueDate, setDueDate] = useState(shared?.dueDate ?? addDays(transaction?.date ?? "", 14));
 
-  return <Modal open={Boolean(transaction)} title={transaction?.description ?? "Editar gasto"} description={transaction ? `${fullDate(transaction.date)} • dado bancário preservado` : undefined} onClose={onClose}>
+  return <Modal open={Boolean(transaction)} title={transaction?.description ?? "Editar gasto"} description={transaction ? `${fullDate(transaction.date)} • ${transaction.source === "MANUAL" ? "lançamento manual" : "dado bancário preservado"}` : undefined} onClose={onClose}>
     {transaction && <form className="form-grid" onSubmit={(event: FormEvent) => {
       event.preventDefault();
       const nextShared: SharedExpense | undefined = charge ? {
@@ -146,6 +151,36 @@ function TransactionEditor({ transaction, shared, onClose, onSave }: { transacti
       <div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit"><NotePencil size={18} /> Salvar</button></div>
     </form>}
   </Modal>;
+}
+
+function ManualTransactionForm({ open, accounts, onClose, onSave }: { open: boolean; accounts: FinanceData["accounts"]; onClose: () => void; onSave: (transaction: Transaction) => void }) {
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [category, setCategory] = useState(categories[0]);
+  const [flow, setFlow] = useState<Transaction["flow"]>("EXPENSE");
+  const [currency, setCurrency] = useState<Currency>("BRL");
+  const [accountId, setAccountId] = useState("manual");
+  const account = accounts.find((item) => item.id === accountId);
+
+  return <Modal open={open} title="Adicionar lançamento" description="Registre dinheiro, PIX ou outra movimentação fora da importação bancária." onClose={onClose}><form className="form-grid" onSubmit={(event: FormEvent) => {
+    event.preventDefault();
+    const amountCents = parseMoney(amount);
+    if (amountCents <= 0) return;
+    onSave({
+      id: crypto.randomUUID(),
+      source: "MANUAL",
+      accountId,
+      description,
+      amountCents,
+      currency,
+      date,
+      flow,
+      kind: classifyTransaction(description, account?.type),
+      category,
+      originalCategory: category,
+    });
+  }}><div className="field"><label htmlFor="manual-description">Descrição</label><input className="input" id="manual-description" value={description} onChange={(event) => setDescription(event.target.value)} required /></div><div className="form-row"><div className="field"><label htmlFor="manual-amount">Valor</label><input className="input" id="manual-amount" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0,00" required /></div><div className="field"><label htmlFor="manual-currency">Moeda</label><select className="select" id="manual-currency" value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}><option value="BRL">Real (BRL)</option><option value="USD">Dólar (USD)</option></select></div></div><div className="form-row"><div className="field"><label htmlFor="manual-date">Data</label><input className="input" id="manual-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></div><div className="field"><label htmlFor="manual-flow">Tipo</label><select className="select" id="manual-flow" value={flow} onChange={(event) => setFlow(event.target.value as Transaction["flow"])}><option value="EXPENSE">Saída</option><option value="INCOME">Entrada</option></select></div></div><div className="field"><label htmlFor="manual-category">Categoria</label><select className="select" id="manual-category" value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select></div><div className="field"><label htmlFor="manual-account">Conta</label><select className="select" id="manual-account" value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="manual">Dinheiro / fora das contas</option>{accounts.map((item) => <option key={item.id} value={item.id}>{item.institution} • {item.name}</option>)}</select></div><div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit">Salvar lançamento</button></div></form></Modal>;
 }
 
 function addDays(isoDate: string, days: number) {
