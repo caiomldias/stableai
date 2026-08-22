@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   CalendarBlank,
@@ -50,6 +51,7 @@ export function FinanceApp({
   demo: boolean;
   onExitDemo: () => void;
 }) {
+  const router = useRouter();
   const [view, setViewState] = useState<AppView>(getInitialView);
   const [data, setData] = useState<FinanceData>(() => {
     if (!demo || typeof window === "undefined") return demo ? demoData : emptyFinanceData;
@@ -129,6 +131,12 @@ export function FinanceApp({
     if (error) setNotice("Não foi possível sair agora. Tente novamente.");
   }
 
+  async function finishAccountDeletion() {
+    await getSupabaseBrowser()?.auth.signOut();
+    router.replace("/");
+    router.refresh();
+  }
+
   const activeLabel = navigation.find((item) => item.id === view)?.label ?? "Início";
 
   return (
@@ -161,7 +169,7 @@ export function FinanceApp({
             {view === "expenses" && <ExpensesView data={data} updateData={updateData} />}
             {view === "plan" && <PlanningView data={data} updateData={updateData} accessToken={accessToken} />}
             {view === "investments" && <InvestmentsView data={data} />}
-            {view === "more" && <MoreView data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={signOut} onNotice={setNotice} />}
+            {view === "more" && <MoreView data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={signOut} onAccountDeleted={finishAccountDeletion} onNotice={setNotice} />}
           </div>
         )}
       </main>
