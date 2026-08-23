@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import {
   DeviceMobile,
   EnvelopeSimple,
@@ -8,7 +9,6 @@ import {
   GoogleLogo,
   LockKey,
   ShieldCheck,
-  TrendUp,
 } from "@phosphor-icons/react";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase-browser";
 
@@ -82,7 +82,7 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
     <main className="auth-page">
       <section className="auth-intro" aria-label="Apresentação">
         <div className="brand-lockup">
-          <span className="brand-mark"><TrendUp size={27} weight="bold" /></span>
+          <span className="brand-mark"><Image src="/stableai-genie.png" alt="" width={46} height={46} priority unoptimized /></span>
           <strong>StableAI</strong>
         </div>
         <div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import {
@@ -13,7 +14,6 @@ import {
   PiggyBank,
   Receipt,
   SignOut,
-  Sparkle,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
 import { ProfileSettings, UserAvatar } from "@/components/profile-settings";
@@ -159,7 +159,7 @@ export function FinanceApp({
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-lockup"><span className="brand-mark"><Sparkle size={25} weight="fill" /></span><strong>StableAI</strong></div>
+        <div className="brand-lockup"><span className="brand-mark"><Image src="/stableai-genie.png" alt="" width={46} height={46} priority unoptimized /></span><strong>StableAI</strong></div>
         <nav aria-label="Principal">
           {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={22} weight={view === item.id ? "fill" : "regular"} /><span>{item.label}</span></button>)}
         </nav>

@@ -1,12 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, Geist_Mono } from "next/font/google";
 import { Theme } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
-const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  weight: "variable",
+  display: "swap",
+});
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -39,9 +44,9 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   await connection();
   return (
-    <html lang="pt-BR" className={`${geist.variable} ${geistMono.variable}`} data-theme="dark">
+    <html lang="pt-BR" className={`${archivo.variable} ${geistMono.variable}`} data-theme="dark">
       <body>
-        <Theme appearance="dark" accentColor="blue" grayColor="slate" radius="large" scaling="100%">
+        <Theme appearance="dark" accentColor="blue" grayColor="slate" radius="none" scaling="100%">
           {children}
         </Theme>
         <ServiceWorkerRegistration />

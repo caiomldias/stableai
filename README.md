@@ -8,6 +8,10 @@ Criei o StableAI para entender melhor para onde meu dinheiro vai e transformar m
 
 O StableAI é somente um assistente e organizador: ele não movimenta dinheiro, não faz PIX e não paga boletos.
 
+## Identidade visual
+
+A direção visual, paleta, tipografia, uso do mascote e regras de componentes estão em [docs/brand-guidelines.md](./docs/brand-guidelines.md).
+
 ## O que ele faz
 
 - Conecta instituições financeiras pela Pluggy e sincroniza contas diariamente.
