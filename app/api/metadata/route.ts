@@ -92,7 +92,7 @@ async function fetchHtml(value: string, redirects = 0): Promise<{ html: string; 
 }
 
 function decode(value = "") {
-  return value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+  return value.replace(/&nbsp;/gi, " ").replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16))).replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code))).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
 }
 
 function meta(html: string, key: string) {
@@ -102,6 +102,70 @@ function meta(html: string, key: string) {
     new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i"),
   ];
   return decode(patterns.map((pattern) => html.match(pattern)?.[1]).find(Boolean));
+}
+
+function price(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.replace(/[^\d,.-]/g, "");
+  const comma = cleaned.lastIndexOf(",");
+  const dot = cleaned.lastIndexOf(".");
+  const decimal = comma >= 0 && dot >= 0 ? (comma > dot ? "," : ".") : comma >= 0 ? "," : ".";
+  const parts = cleaned.split(decimal);
+  const normalized = parts.length === 2 && parts[1].length <= 2
+    ? `${parts[0].replace(/[.,]/g, "")}.${parts[1]}`
+    : cleaned.replace(/[.,]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function productFrom(value: unknown): Record<string, unknown> | undefined {
+  if (Array.isArray(value)) return value.map(productFrom).find(Boolean);
+  const item = record(value);
+  if (!item) return undefined;
+  const types = Array.isArray(item["@type"]) ? item["@type"] : [item["@type"]];
+  if (types.some((type) => String(type).toLowerCase() === "product")) return item;
+  return productFrom(item["@graph"]);
+}
+
+function imageFrom(value: unknown) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return imageFrom(value[0]);
+  const item = record(value);
+  return typeof item?.url === "string" ? item.url : typeof item?.contentUrl === "string" ? item.contentUrl : undefined;
+}
+
+function jsonLdProduct(html: string) {
+  const scripts = html.matchAll(/<script[^>]+type=["']application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of scripts) {
+    try {
+      const product = productFrom(JSON.parse(match[1]));
+      if (product) return product;
+    } catch { /* Algumas lojas publicam blocos inválidos; os demais ainda podem funcionar. */ }
+  }
+  return undefined;
+}
+
+function absoluteImage(value: string | undefined, baseUrl: string) {
+  if (!value) return undefined;
+  try { return new URL(value, baseUrl).toString(); } catch { return undefined; }
+}
+
+export function extractProductMetadata(html: string, finalUrl: string) {
+  const product = jsonLdProduct(html);
+  const offers = Array.isArray(product?.offers) ? product.offers : product?.offers ? [product.offers] : [];
+  const pricedOffers = offers.map(record).map((offer) => ({ offer, value: price(offer?.price ?? offer?.lowPrice) })).filter((item): item is { offer: Record<string, unknown>; value: number } => item.value !== undefined).sort((a, b) => a.value - b.value);
+  const selectedOffer = pricedOffers[0];
+  const title = (typeof product?.name === "string" ? decode(product.name) : "") || meta(html, "og:title") || meta(html, "twitter:title") || decode(html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]);
+  const image = absoluteImage(imageFrom(product?.image) || meta(html, "og:image") || meta(html, "twitter:image"), finalUrl);
+  const fallbackPrice = meta(html, "product:price:amount") || meta(html, "og:price:amount") || html.match(/["']price["']\s*:\s*["']?([\d.,]+)/i)?.[1];
+  const parsedPrice = selectedOffer?.value ?? price(product?.price) ?? price(fallbackPrice);
+  const currency = String(selectedOffer?.offer.priceCurrency ?? product?.priceCurrency ?? meta(html, "product:price:currency") ?? html.match(/["']priceCurrency["']\s*:\s*["']([A-Z]{3})/i)?.[1] ?? "BRL").toUpperCase();
+  return { title: title || undefined, image, price: parsedPrice, currency: currency === "USD" ? "USD" : "BRL", missing: [...(!title ? ["title"] : []), ...(parsedPrice === undefined ? ["price"] : [])] };
 }
 
 export async function POST(request: NextRequest) {
@@ -118,12 +182,8 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Informe um link válido." }, { status: 400 });
   try {
     const { html, finalUrl } = await fetchHtml(parsed.data.url);
-    const title = meta(html, "og:title") || meta(html, "twitter:title") || decode(html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]);
-    const image = meta(html, "og:image") || meta(html, "twitter:image");
-    const priceRaw = meta(html, "product:price:amount") || html.match(/["']price["']\s*:\s*["']?([\d.,]+)/i)?.[1] || "";
-    const currency = (meta(html, "product:price:currency") || html.match(/["']priceCurrency["']\s*:\s*["']([A-Z]{3})/i)?.[1] || "BRL").toUpperCase();
-    const price = Number(priceRaw.replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".")) || undefined;
-    return NextResponse.json({ title: title || new URL(finalUrl).hostname, image: image ? new URL(image, finalUrl).toString() : undefined, price, currency: currency === "USD" ? "USD" : "BRL" });
+    const product = extractProductMetadata(html, finalUrl);
+    return NextResponse.json({ ...product, title: product.title || new URL(finalUrl).hostname });
   } catch (cause) {
     return NextResponse.json({ error: cause instanceof Error ? cause.message : "Preencha as informações manualmente." }, { status: 422 });
   }
