@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { getStoredCurrency } from "@/lib/locale";
 import { classifyTransaction, computeBudgetUsage, filterTransactions, fullDate, money, parseMoney, shortDate, totalsByCurrency } from "@/lib/finance";
 import type { Budget, Currency, FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
 
@@ -128,7 +129,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
 function BudgetForm({ budget, open, onClose, onSave }: { budget?: Budget; open: boolean; onClose: () => void; onSave: (budget: Budget) => void }) {
   const [category, setCategory] = useState(budget?.category ?? categories[0]);
   const [limit, setLimit] = useState(budget ? (budget.monthlyLimitCents / 100).toFixed(2).replace(".", ",") : "");
-  const [currency, setCurrency] = useState<Currency>(budget?.currency ?? "BRL");
+  const [currency, setCurrency] = useState<Currency>(budget?.currency ?? getStoredCurrency());
   return <Modal open={open} title={budget ? "Editar teto mensal" : "Novo teto mensal"} description="O progresso considera as despesas do mês atual." onClose={onClose}><form className="form-grid" onSubmit={(event: FormEvent) => { event.preventDefault(); onSave({ id: budget?.id ?? crypto.randomUUID(), category, monthlyLimitCents: parseMoney(limit), currency }); }}><div className="field"><label htmlFor="budget-category">Categoria</label><select className="select" id="budget-category" value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item}>{item}</option>)}</select></div><div className="form-row"><div className="field"><label htmlFor="budget-limit">Teto mensal</label><input className="input" id="budget-limit" inputMode="decimal" value={limit} onChange={(event) => setLimit(event.target.value)} placeholder="1.000,00" required /></div><div className="field"><label htmlFor="budget-currency">Moeda</label><select className="select" id="budget-currency" value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}><option value="BRL">Real (BRL)</option><option value="USD">Dólar (USD)</option></select></div></div><div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit">Salvar teto</button></div></form></Modal>;
 }
 
@@ -171,7 +172,7 @@ function ManualTransactionForm({ open, accounts, onClose, onSave }: { open: bool
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState(categories[0]);
   const [flow, setFlow] = useState<Transaction["flow"]>("EXPENSE");
-  const [currency, setCurrency] = useState<Currency>("BRL");
+  const [currency, setCurrency] = useState<Currency>(getStoredCurrency());
   const [accountId, setAccountId] = useState("manual");
   const account = accounts.find((item) => item.id === accountId);
 

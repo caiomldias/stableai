@@ -196,6 +196,12 @@ a { color: inherit; text-decoration: none; }
 .eyebrow { color: var(--baby-500); font-size: .75rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
 .auth-panel-header h2 { margin: 10px 0 8px; font-size: clamp(1.75rem, 3vw, 2.35rem); letter-spacing: -.035em; }
 .auth-panel-header p { margin: 0 0 28px; color: var(--text-muted); }
+.locale-choice { display: grid; gap: 10px; margin: -10px 0 24px; }
+.locale-choice-label { color: var(--text-muted); font-size: .82rem; }
+.locale-choice-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.locale-choice-buttons button { min-height: 44px; padding: 8px 10px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--navy-700); border-radius: var(--radius-control); background: var(--navy-850); color: var(--text-muted); cursor: pointer; font: inherit; font-size: .78rem; font-weight: 650; }
+.locale-choice-buttons button:hover, .locale-choice-buttons button:focus-visible { border-color: var(--baby-500); color: var(--white-cold); }
+.locale-choice-buttons button.active { border-color: var(--baby-500); background: rgba(124, 204, 244, .12); color: var(--white-cold); box-shadow: inset 0 -2px 0 var(--baby-500); }
 .auth-social { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .button.social { border-radius: var(--radius-input); background: var(--navy-850); }
 .button.full { width: 100%; }
@@ -265,6 +271,10 @@ a { color: inherit; text-decoration: none; }
 .mobile-brand { display: none; color: var(--baby-500); font-size: .72rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .guest-badge { min-height: 27px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(124, 204, 244, .28); border-radius: 999px; color: var(--baby-300); font-size: .72rem; font-weight: 700; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
+.locale-toggle { min-height: 40px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--navy-700); border-radius: var(--radius-control); background: var(--navy-850); color: var(--white-cold); cursor: pointer; font: inherit; font-weight: 700; }
+.locale-toggle:hover, .locale-toggle:focus-visible { border-color: var(--baby-500); background: rgba(124, 204, 244, .1); }
+.locale-toggle > span:first-child { font-size: 1.2rem; line-height: 1; }
+.locale-code { color: var(--baby-300); font: 700 .7rem var(--font-geist-mono); letter-spacing: .04em; }
 .profile-shortcut { position: relative; width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
 .profile-shortcut .avatar { transition: border-color .16s ease, box-shadow .16s ease; }
 .profile-shortcut:hover .avatar, .profile-shortcut:focus-visible .avatar, .sidebar-foot:focus-visible .avatar { border-color: var(--baby-500); box-shadow: 0 0 0 3px rgba(124, 204, 244, .12); }

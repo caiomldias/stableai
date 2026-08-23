@@ -16,6 +16,7 @@ import {
   SignOut,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { useLocale } from "@/components/locale-provider";
 import { ProfileSettings, UserAvatar } from "@/components/profile-settings";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { ExpensesView } from "@/components/views/expenses-view";
@@ -31,11 +32,11 @@ import type { FinanceData } from "@/lib/types";
 export type AppView = "home" | "expenses" | "plan" | "investments" | "more";
 
 const navigation = [
-  { id: "home" as const, label: "Início", icon: House },
-  { id: "expenses" as const, label: "Gastos", icon: Receipt },
-  { id: "plan" as const, label: "Planejar", icon: PiggyBank },
-  { id: "investments" as const, label: "Investir", icon: ChartLineUp },
-  { id: "more" as const, label: "Mais", icon: ListBullets },
+  { id: "home" as const, labelKey: "nav.home" as const, icon: House },
+  { id: "expenses" as const, labelKey: "nav.expenses" as const, icon: Receipt },
+  { id: "plan" as const, labelKey: "nav.plan" as const, icon: PiggyBank },
+  { id: "investments" as const, labelKey: "nav.investments" as const, icon: ChartLineUp },
+  { id: "more" as const, labelKey: "nav.more" as const, icon: ListBullets },
 ];
 
 function getInitialView(): AppView {
@@ -53,6 +54,7 @@ export function FinanceApp({
   demo: boolean;
   onExitDemo: () => void;
 }) {
+  const { language, flag, selectLanguage, t } = useLocale();
   const router = useRouter();
   const [view, setViewState] = useState<AppView>(getInitialView);
   const [data, setData] = useState<FinanceData>(() => {
@@ -154,14 +156,14 @@ export function FinanceApp({
     router.refresh();
   }
 
-  const activeLabel = navigation.find((item) => item.id === view)?.label ?? "Início";
+  const activeLabel = t(navigation.find((item) => item.id === view)?.labelKey ?? "nav.home");
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-lockup"><span className="brand-mark"><Image src="/stableai-genie.png" alt="" width={46} height={46} priority unoptimized /></span><strong>StableAI</strong></div>
         <nav aria-label="Principal">
-          {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={22} weight={view === item.id ? "fill" : "regular"} /><span>{item.label}</span></button>)}
+          {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={22} weight={view === item.id ? "fill" : "regular"} /><span>{t(item.labelKey)}</span></button>)}
         </nav>
         <button className="sidebar-foot" type="button" onClick={openProfile} aria-label="Abrir configurações do perfil">
           <UserAvatar name={name} url={avatarUrl} />
@@ -174,6 +176,9 @@ export function FinanceApp({
         <header className="topbar">
           <div className="topbar-title"><span className="mobile-brand">StableAI</span><h1>{activeLabel}</h1>{demo && <span className="guest-badge"><LockKey size={14} /> Convidado</span>}</div>
           <div className="topbar-actions">
+            <button className="locale-toggle" type="button" onClick={() => selectLanguage(language === "pt-BR" ? "en-US" : "pt-BR")} aria-label={t("top.switchTo")} title={t("top.switchTo")}>
+              <span aria-hidden="true">{flag}</span><span className="locale-code">{language === "pt-BR" ? "BRL" : "USD"}</span>
+            </button>
             <button className={`profile-shortcut${demo ? " guest-locked" : ""}`} type="button" onClick={openProfile} aria-label="Abrir configurações do perfil"><UserAvatar name={name} url={avatarUrl} />{demo && <LockKey className="profile-lock" size={14} />}</button>
             <button className="button icon-only ghost notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`Notificações${alerts.length ? `, ${alerts.length} pendentes` : ""}`}><Bell size={21} />{alerts.length > 0 && <span>{alerts.length}</span>}</button>
             <button className="button small ghost account-action" type="button" onClick={signOut} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
@@ -194,7 +199,7 @@ export function FinanceApp({
       </main>
 
       <nav className="bottom-nav" aria-label="Principal">
-        {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={23} weight={view === item.id ? "fill" : "regular"} /><span>{item.label}</span></button>)}
+        {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={23} weight={view === item.id ? "fill" : "regular"} /><span>{t(item.labelKey)}</span></button>)}
       </nav>
       <Modal open={alertsOpen} title="Seus lembretes" description={`Avisos para os próximos ${data.notifications.daysBefore} dias.`} onClose={() => setAlertsOpen(false)}>
         <div className="alert-list">
