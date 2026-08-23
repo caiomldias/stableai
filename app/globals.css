@@ -458,6 +458,8 @@ a { color: inherit; text-decoration: none; }
 .tab-bar { display: flex; gap: 7px; overflow-x: auto; padding: 5px; border-radius: 14px; background: #06131f; scrollbar-width: none; }
 .tab-bar button { min-height: 42px; padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text-muted); font-weight: 620; cursor: pointer; white-space: nowrap; }
 .tab-bar button.active { background: var(--navy-800); color: var(--baby-300); }
+.planning-feedback { min-height: 48px; padding: 11px 14px; display: flex; align-items: center; gap: 9px; border: 1px solid rgba(111, 211, 162, .35); border-radius: 12px; background: rgba(111, 211, 162, .1); color: #9ae7c1; font-size: .88rem; font-weight: 620; }
+.planning-feedback svg { flex: 0 0 auto; }
 .vault-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .vault-card { min-height: 300px; padding: 22px; display: grid; align-content: space-between; gap: 22px; border: 1px solid var(--navy-700); border-radius: var(--radius-card); background: var(--navy-850); }
 .vault-top { display: flex; align-items: center; justify-content: space-between; }
@@ -479,6 +481,13 @@ a { color: inherit; text-decoration: none; }
 .goal-meta strong { font: 700 1.08rem var(--font-geist-mono); }
 .goal-meta small { color: var(--text-muted); }
 .goal-meta span { margin-top: 10px; display: flex; align-items: center; gap: 6px; color: var(--baby-300); font-size: .78rem; }
+.goal-actions { margin-top: 10px; display: flex; justify-content: flex-end; gap: 7px; }
+.goal-actions button { min-height: 34px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--navy-700); border-radius: 9px; background: transparent; color: var(--text-muted); font-size: .76rem; font-weight: 650; cursor: pointer; }
+.goal-actions button:hover { border-color: var(--baby-500); background: rgba(124, 204, 244, .08); color: var(--white-cold); }
+.goal-actions button.danger { color: #f5a7ac; }
+.goal-actions button.danger:hover { border-color: rgba(239, 140, 146, .5); background: rgba(239, 140, 146, .09); color: #ffd4d7; }
+.goal-delete-copy { margin: 0; color: var(--text-muted); line-height: 1.55; }
+.goal-delete-copy strong { color: var(--white-cold); }
 .wishlist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 16px; }
 .wish-card { overflow: hidden; display: grid; grid-template-columns: 140px minmax(0, 1fr); border: 1px solid var(--navy-700); border-radius: var(--radius-card); background: var(--navy-850); }
 .wish-card img, .wish-placeholder { width: 140px; height: 100%; min-height: 210px; object-fit: cover; background: linear-gradient(145deg, var(--navy-800), #0a1e2f); }
@@ -522,6 +531,7 @@ a { color: inherit; text-decoration: none; }
   .goal-visual { width: 58px; height: 58px; border-radius: 17px; }
   .goal-meta { grid-column: 2; text-align: left; }
   .goal-meta span { margin-top: 4px; }
+  .goal-actions { justify-content: flex-start; }
   .wishlist-grid { grid-template-columns: 1fr; }
   .wish-card { grid-template-columns: 108px minmax(0, 1fr); }
   .wish-card img, .wish-placeholder { width: 108px; min-height: 230px; }

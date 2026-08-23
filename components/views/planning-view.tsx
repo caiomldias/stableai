@@ -1,28 +1,32 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   AirplaneTilt,
   ArrowRight,
   CalendarBlank,
   Check,
+  CheckCircle,
   Heart,
   HouseLine,
   LinkSimple,
   PaperPlaneTilt,
+  PencilSimple,
   PiggyBank,
   Plus,
   Robot,
   ShieldCheck,
   Sparkle,
   Target,
+  Trash,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
 import { calculateGoal, fullDate, money, parseMoney, refreshGoal, totalsByCurrency } from "@/lib/finance";
 import type { Currency, FinanceData, Frequency, PurchaseGoal, Vault, WishlistItem } from "@/lib/types";
 
 type Tab = "vaults" | "goals" | "wishlist" | "assistant";
+type PlanningModal = "vault" | "goal" | "edit-goal" | "delete-goal" | "wish" | "contribution" | null;
 
 const tabs = [
   { id: "vaults" as const, label: "Cofrinhos", icon: PiggyBank },
@@ -35,29 +39,52 @@ const frequencyLabel: Record<Frequency, string> = { DAILY: "por dia", WEEKLY: "p
 
 export function PlanningView({ data, updateData, accessToken }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; accessToken?: string }) {
   const [tab, setTab] = useState<Tab>("vaults");
-  const [modal, setModal] = useState<"vault" | "goal" | "wish" | "contribution" | null>(null);
+  const [modal, setModal] = useState<PlanningModal>(null);
   const [activeVault, setActiveVault] = useState<Vault | null>(null);
+  const [activeGoal, setActiveGoal] = useState<PurchaseGoal | null>(null);
+  const [feedback, setFeedback] = useState("");
+  const currentCount = tab === "vaults" ? data.vaults.length : tab === "goals" ? data.goals.length : tab === "wishlist" ? data.wishlist.length : 0;
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timeout = window.setTimeout(() => setFeedback(""), 4500);
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
+  function closeModal() {
+    setModal(null);
+    setActiveVault(null);
+    setActiveGoal(null);
+  }
+
+  function openAdd() {
+    setActiveGoal(null);
+    setModal(tab === "vaults" ? "vault" : tab === "goals" ? "goal" : "wish");
+  }
 
   return (
     <div className="stack">
-      <div className="page-heading"><div><h2>Planeje o que vem depois</h2><p>Transforme intenção em um valor possível de guardar.</p></div>{tab !== "assistant" && <button className="button primary" type="button" aria-label={`Adicionar ${tab === "vaults" ? "cofrinho" : tab === "goals" ? "meta" : "desejo"}`} onClick={() => setModal(tab === "vaults" ? "vault" : tab === "goals" ? "goal" : "wish")}><Plus size={19} /><span>Adicionar</span></button>}</div>
+      <div className="page-heading"><div><h2>Planeje o que vem depois</h2><p>Transforme intenção em um valor possível de guardar.</p></div>{tab !== "assistant" && currentCount > 0 && <button className="button primary" type="button" aria-label={`Adicionar ${tab === "vaults" ? "cofrinho" : tab === "goals" ? "meta" : "desejo"}`} onClick={openAdd}><Plus size={19} /><span>Adicionar</span></button>}</div>
       <div className="tab-bar" role="tablist" aria-label="Planejamento">{tabs.map((item) => <button role="tab" aria-selected={tab === item.id} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{item.label}</button>)}</div>
 
-      {tab === "vaults" && <Vaults data={data} onContribution={(vault) => { setActiveVault(vault); setModal("contribution"); }} />}
-      {tab === "goals" && <Goals goals={data.goals} />}
-      {tab === "wishlist" && <Wishlist items={data.wishlist} onCreateGoal={(item) => updateData((current) => ({ ...current, goals: [...current.goals, refreshGoal({ id: crypto.randomUUID(), name: item.title, priceCents: item.priceCents, savedCents: 0, contributionCents: item.contributionCents, currency: item.currency, frequency: item.frequency })] }))} />}
+      {feedback && <div className="planning-feedback" role="status" aria-live="polite"><CheckCircle size={21} weight="fill" /><span>{feedback}</span></div>}
+
+      {tab === "vaults" && <Vaults data={data} onAdd={openAdd} onContribution={(vault) => { setActiveVault(vault); setModal("contribution"); }} />}
+      {tab === "goals" && <Goals goals={data.goals} onAdd={openAdd} onEdit={(goal) => { setActiveGoal(goal); setModal("edit-goal"); }} onDelete={(goal) => { setActiveGoal(goal); setModal("delete-goal"); }} />}
+      {tab === "wishlist" && <Wishlist items={data.wishlist} onAdd={openAdd} onCreateGoal={(item) => { updateData((current) => ({ ...current, goals: [...current.goals, refreshGoal({ id: crypto.randomUUID(), name: item.title, priceCents: item.priceCents, savedCents: 0, contributionCents: item.contributionCents, currency: item.currency, frequency: item.frequency })] })); setFeedback(`Meta “${item.title}” criada com sucesso.`); }} />}
       {tab === "assistant" && <FinancialAssistant data={data} accessToken={accessToken} />}
 
-      <VaultForm open={modal === "vault"} onClose={() => setModal(null)} onSubmit={(vault) => { updateData((current) => ({ ...current, vaults: [...current.vaults, vault] })); setModal(null); }} />
-      <GoalForm open={modal === "goal"} onClose={() => setModal(null)} onSubmit={(goal) => { updateData((current) => ({ ...current, goals: [...current.goals, goal] })); setModal(null); }} />
-      <WishForm open={modal === "wish"} accessToken={accessToken} onClose={() => setModal(null)} onSubmit={(item) => { updateData((current) => ({ ...current, wishlist: [...current.wishlist, item] })); setModal(null); }} />
-      <ContributionForm vault={activeVault} open={modal === "contribution"} onClose={() => setModal(null)} onSubmit={(cents) => { if (!activeVault) return; updateData((current) => ({ ...current, vaults: current.vaults.map((item) => item.id === activeVault.id ? { ...item, savedCents: item.savedCents + cents, contributions: [...item.contributions, { id: crypto.randomUUID(), amountCents: cents, date: new Date().toISOString().slice(0, 10) }] } : item) })); setModal(null); }} />
+      <VaultForm open={modal === "vault"} onClose={closeModal} onSubmit={(vault) => { updateData((current) => ({ ...current, vaults: [...current.vaults, vault] })); closeModal(); }} />
+      <GoalForm key={modal === "edit-goal" ? activeGoal?.id : "new-goal"} goal={modal === "edit-goal" ? activeGoal : null} open={modal === "goal" || modal === "edit-goal"} onClose={closeModal} onSubmit={(goal) => { const editing = modal === "edit-goal"; updateData((current) => ({ ...current, goals: editing ? current.goals.map((item) => item.id === goal.id ? goal : item) : [...current.goals, goal] })); setFeedback(editing ? "Meta atualizada com sucesso." : "Meta criada com sucesso."); closeModal(); }} />
+      <Modal open={modal === "delete-goal"} title="Excluir meta?" description="Esta ação remove a meta do seu planejamento." onClose={closeModal}><p className="goal-delete-copy">A meta <strong>{activeGoal?.name}</strong> será excluída. Os outros dados financeiros não serão alterados.</p><div className="form-actions"><button className="button ghost" type="button" onClick={closeModal}>Cancelar</button><button className="button danger" type="button" onClick={() => { if (!activeGoal) return; updateData((current) => ({ ...current, goals: current.goals.filter((item) => item.id !== activeGoal.id) })); setFeedback("Meta excluída."); closeModal(); }}><Trash size={18} />Excluir meta</button></div></Modal>
+      <WishForm open={modal === "wish"} accessToken={accessToken} onClose={closeModal} onSubmit={(item) => { updateData((current) => ({ ...current, wishlist: [...current.wishlist, item] })); closeModal(); }} />
+      <ContributionForm vault={activeVault} open={modal === "contribution"} onClose={closeModal} onSubmit={(cents) => { if (!activeVault) return; updateData((current) => ({ ...current, vaults: current.vaults.map((item) => item.id === activeVault.id ? { ...item, savedCents: item.savedCents + cents, contributions: [...item.contributions, { id: crypto.randomUUID(), amountCents: cents, date: new Date().toISOString().slice(0, 10) }] } : item) })); closeModal(); }} />
     </div>
   );
 }
 
-function Vaults({ data, onContribution }: { data: FinanceData; onContribution: (vault: Vault) => void }) {
-  if (!data.vaults.length) return <Empty icon={PiggyBank} title="Seu primeiro cofrinho" text="Separe virtualmente um valor para uma reserva ou objetivo." />;
+function Vaults({ data, onAdd, onContribution }: { data: FinanceData; onAdd: () => void; onContribution: (vault: Vault) => void }) {
+  if (!data.vaults.length) return <Empty icon={PiggyBank} title="Seu primeiro cofrinho" text="Separe virtualmente um valor para uma reserva ou objetivo." actionLabel="Criar cofrinho" onAction={onAdd} />;
   return <section className="vault-grid">{data.vaults.map((vault) => {
     const progress = Math.min(100, Math.round((vault.savedCents / Math.max(1, vault.targetCents)) * 100));
     const Icon = vault.icon === "TRAVEL" ? AirplaneTilt : vault.icon === "HOME" ? HouseLine : ShieldCheck;
@@ -65,17 +92,17 @@ function Vaults({ data, onContribution }: { data: FinanceData; onContribution: (
   })}</section>;
 }
 
-function Goals({ goals }: { goals: PurchaseGoal[] }) {
-  if (!goals.length) return <Empty icon={Target} title="Planeje uma compra" text="Diga o preço e quanto consegue guardar. O prazo aparece na hora." />;
+function Goals({ goals, onAdd, onEdit, onDelete }: { goals: PurchaseGoal[]; onAdd: () => void; onEdit: (goal: PurchaseGoal) => void; onDelete: (goal: PurchaseGoal) => void }) {
+  if (!goals.length) return <Empty icon={Target} title="Planeje uma compra" text="Diga o preço e quanto consegue guardar. O prazo aparece na hora." actionLabel="Criar meta" onAction={onAdd} />;
   return <section className="goal-list">{goals.map((goal) => {
     const calculation = calculateGoal(goal.priceCents, goal.savedCents, goal.contributionCents, goal.frequency);
     const progress = Math.min(100, Math.round((goal.savedCents / Math.max(1, goal.priceCents)) * 100));
-    return <article className="goal-row" key={goal.id}><div className="goal-visual"><Target size={25} /><span>{progress}%</span></div><div className="goal-copy"><span className="status-label">{goal.status === "COMPLETED" ? "Concluída" : "Em andamento"}</span><h3>{goal.name}</h3><p>Guardando <strong>{money(goal.contributionCents, goal.currency)} {frequencyLabel[goal.frequency]}</strong>, faltam cerca de <strong>{calculation.months} meses</strong>.</p></div><div className="goal-meta"><strong>{money(goal.savedCents, goal.currency)}</strong><small>de {money(goal.priceCents, goal.currency)}</small>{goal.estimatedDate && <span><CalendarBlank size={16} /> {fullDate(calculation.estimatedDate)}</span>}</div></article>;
+    return <article className="goal-row" key={goal.id}><div className="goal-visual"><Target size={25} /><span>{progress}%</span></div><div className="goal-copy"><span className="status-label">{goal.status === "COMPLETED" ? "Concluída" : "Em andamento"}</span><h3>{goal.name}</h3><p>Guardando <strong>{money(goal.contributionCents, goal.currency)} {frequencyLabel[goal.frequency]}</strong>, faltam cerca de <strong>{calculation.months} meses</strong>.</p></div><div className="goal-meta"><strong>{money(goal.savedCents, goal.currency)}</strong><small>de {money(goal.priceCents, goal.currency)}</small>{goal.estimatedDate && <span><CalendarBlank size={16} /> {fullDate(calculation.estimatedDate)}</span>}<div className="goal-actions"><button type="button" onClick={() => onEdit(goal)} aria-label={`Editar meta ${goal.name}`}><PencilSimple size={16} />Editar</button><button className="danger" type="button" onClick={() => onDelete(goal)} aria-label={`Excluir meta ${goal.name}`}><Trash size={16} />Excluir</button></div></div></article>;
   })}</section>;
 }
 
-function Wishlist({ items, onCreateGoal }: { items: WishlistItem[]; onCreateGoal: (item: WishlistItem) => void }) {
-  if (!items.length) return <Empty icon={Heart} title="Guarde um desejo" text="Cole um link de produto e transforme vontade em um plano real." />;
+function Wishlist({ items, onAdd, onCreateGoal }: { items: WishlistItem[]; onAdd: () => void; onCreateGoal: (item: WishlistItem) => void }) {
+  if (!items.length) return <Empty icon={Heart} title="Guarde um desejo" text="Cole um link de produto e transforme vontade em um plano real." actionLabel="Adicionar desejo" onAction={onAdd} />;
   return <section className="wishlist-grid">{items.map((item) => {
     const result = calculateGoal(item.priceCents, 0, item.contributionCents, item.frequency);
     return <article className="wish-card" key={item.id}>{item.image ? <Image src={item.image} alt="" width={140} height={210} unoptimized /> : <div className="wish-placeholder"><Heart size={32} /></div>}<div><h3>{item.title}</h3><strong>{money(item.priceCents, item.currency)}</strong><p>{money(item.contributionCents, item.currency)} {frequencyLabel[item.frequency]}: cerca de {result.months} meses.</p><div className="wish-actions"><a href={item.url} target="_blank" rel="noreferrer"><LinkSimple size={17} /> Ver produto</a><button type="button" onClick={() => onCreateGoal(item)}>Criar meta <ArrowRight size={16} /></button></div></div></article>;
@@ -116,10 +143,11 @@ function VaultForm({ open, onClose, onSubmit }: { open: boolean; onClose: () => 
   return <Modal open={open} title="Novo cofrinho" description="Uma divisão virtual para organizar seu saldo." onClose={onClose}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); onSubmit({ id: crypto.randomUUID(), name, icon: "OTHER", targetCents: parseMoney(target), savedCents: 0, currency, contributions: [] }); setName(""); setTarget(""); }}><div className="field"><label htmlFor="vault-name">Nome</label><input className="input" id="vault-name" placeholder="Ex.: Reserva de emergência" value={name} onChange={(event) => setName(event.target.value)} required /></div><div className="form-row"><div className="field"><label htmlFor="vault-target">Valor da meta</label><input className="input" id="vault-target" inputMode="decimal" placeholder="10.000,00" value={target} onChange={(event) => setTarget(event.target.value)} required /></div><CurrencyField id="vault-currency" value={currency} onChange={setCurrency} /></div><Actions onClose={onClose} /></form></Modal>;
 }
 
-function GoalForm({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (goal: PurchaseGoal) => void }) {
-  const [name, setName] = useState(""); const [price, setPrice] = useState(""); const [saved, setSaved] = useState("0"); const [contribution, setContribution] = useState(""); const [currency, setCurrency] = useState<Currency>("BRL"); const [frequency, setFrequency] = useState<Frequency>("MONTHLY");
+function GoalForm({ goal, open, onClose, onSubmit }: { goal?: PurchaseGoal | null; open: boolean; onClose: () => void; onSubmit: (goal: PurchaseGoal) => void }) {
+  const initialMoney = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
+  const [name, setName] = useState(goal?.name ?? ""); const [price, setPrice] = useState(goal ? initialMoney(goal.priceCents) : ""); const [saved, setSaved] = useState(goal ? initialMoney(goal.savedCents) : "0"); const [contribution, setContribution] = useState(goal ? initialMoney(goal.contributionCents) : ""); const [currency, setCurrency] = useState<Currency>(goal?.currency ?? "BRL"); const [frequency, setFrequency] = useState<Frequency>(goal?.frequency ?? "MONTHLY");
   const preview = useMemo(() => calculateGoal(parseMoney(price), parseMoney(saved), parseMoney(contribution), frequency), [price, saved, contribution, frequency]);
-  return <Modal open={open} title="Planejar uma compra" description="Informe o que cabe no seu orçamento." onClose={onClose}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); onSubmit(refreshGoal({ id: crypto.randomUUID(), name, priceCents: parseMoney(price), savedCents: parseMoney(saved), contributionCents: parseMoney(contribution), currency, frequency })); }}><div className="field"><label htmlFor="goal-name">O que você quer comprar?</label><input className="input" id="goal-name" placeholder="Ex.: Novo celular" value={name} onChange={(event) => setName(event.target.value)} required /></div><div className="form-row"><div className="field"><label htmlFor="goal-price">Preço</label><input className="input" id="goal-price" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} required /></div><CurrencyField id="goal-currency" value={currency} onChange={setCurrency} /></div><div className="form-row"><div className="field"><label htmlFor="goal-saved">Já guardado</label><input className="input" id="goal-saved" inputMode="decimal" value={saved} onChange={(event) => setSaved(event.target.value)} /></div><div className="field"><label htmlFor="goal-contribution">Quanto pode guardar</label><input className="input" id="goal-contribution" inputMode="decimal" value={contribution} onChange={(event) => setContribution(event.target.value)} required /></div></div><FrequencyField value={frequency} onChange={setFrequency} />{Number.isFinite(preview.months) && parseMoney(contribution) > 0 && <div className="calculation-preview"><CalendarBlank size={22} /><p><strong>Cerca de {preview.months} meses</strong><span>Previsão para {fullDate(preview.estimatedDate)}</span></p></div>}<Actions onClose={onClose} /></form></Modal>;
+  return <Modal open={open} title={goal ? "Editar meta" : "Planejar uma compra"} description={goal ? "Atualize o valor já guardado ou ajuste o seu plano." : "Informe o que cabe no seu orçamento."} onClose={onClose}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); onSubmit(refreshGoal({ id: goal?.id ?? crypto.randomUUID(), name, priceCents: parseMoney(price), savedCents: parseMoney(saved), contributionCents: parseMoney(contribution), currency, frequency })); }}><div className="field"><label htmlFor="goal-name">O que você quer comprar?</label><input className="input" id="goal-name" placeholder="Ex.: Novo celular" value={name} onChange={(event) => setName(event.target.value)} required /></div><div className="form-row"><div className="field"><label htmlFor="goal-price">Preço</label><input className="input" id="goal-price" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} required /></div><CurrencyField id="goal-currency" value={currency} onChange={setCurrency} /></div><div className="form-row"><div className="field"><label htmlFor="goal-saved">Já guardado</label><input className="input" id="goal-saved" inputMode="decimal" value={saved} onChange={(event) => setSaved(event.target.value)} /></div><div className="field"><label htmlFor="goal-contribution">Quanto pode guardar</label><input className="input" id="goal-contribution" inputMode="decimal" value={contribution} onChange={(event) => setContribution(event.target.value)} required /></div></div><FrequencyField value={frequency} onChange={setFrequency} />{Number.isFinite(preview.months) && parseMoney(contribution) > 0 && <div className="calculation-preview"><CalendarBlank size={22} /><p><strong>Cerca de {preview.months} meses</strong><span>Previsão para {fullDate(preview.estimatedDate)}</span></p></div>}<Actions onClose={onClose} /></form></Modal>;
 }
 
 function WishForm({ open, accessToken, onClose, onSubmit }: { open: boolean; accessToken?: string; onClose: () => void; onSubmit: (item: WishlistItem) => void }) {
@@ -132,4 +160,4 @@ function ContributionForm({ vault, open, onClose, onSubmit }: { vault: Vault | n
 function CurrencyField({ id, value, onChange }: { id: string; value: Currency; onChange: (value: Currency) => void }) { return <div className="field"><label htmlFor={id}>Moeda</label><select className="select" id={id} value={value} onChange={(event) => onChange(event.target.value as Currency)}><option value="BRL">Real (BRL)</option><option value="USD">Dólar (USD)</option></select></div>; }
 function FrequencyField({ value, onChange }: { value: Frequency; onChange: (value: Frequency) => void }) { return <div className="field"><label htmlFor="frequency">Frequência</label><select className="select" id="frequency" value={value} onChange={(event) => onChange(event.target.value as Frequency)}><option value="DAILY">Por dia</option><option value="WEEKLY">Por semana</option><option value="MONTHLY">Por mês</option></select></div>; }
 function Actions({ onClose }: { onClose: () => void }) { return <div className="form-actions"><button className="button ghost" type="button" onClick={onClose}>Cancelar</button><button className="button primary" type="submit">Salvar</button></div>; }
-function Empty({ icon: Icon, title, text }: { icon: typeof PiggyBank; title: string; text: string }) { return <section className="panel empty-state"><div><span className="feature-icon"><Icon size={28} /></span><h3>{title}</h3><p>{text}</p></div></section>; }
+function Empty({ icon: Icon, title, text, actionLabel, onAction }: { icon: typeof PiggyBank; title: string; text: string; actionLabel: string; onAction: () => void }) { return <section className="panel empty-state"><div><span className="feature-icon"><Icon size={28} /></span><h3>{title}</h3><p>{text}</p><button className="button primary" type="button" onClick={onAction}><Plus size={18} />{actionLabel}</button></div></section>; }
