@@ -381,6 +381,7 @@ a { color: inherit; text-decoration: none; }
   .form-row { grid-template-columns: 1fr; }
   .modal-backdrop { padding: 0; place-items: end center; }
   .modal-sheet { max-height: calc(100dvh - var(--safe-top)); border-radius: 20px 20px 0 0; border-bottom: 0; }
+  .assistant-fab { right: 16px; bottom: calc(78px + var(--safe-bottom)); }
 }
 
 .more-tabs { width: 100%; }
@@ -624,6 +625,17 @@ a { color: inherit; text-decoration: none; }
 .assistant-card h3 { margin: 0 0 8px; font-size: 1.55rem; letter-spacing: -.04em; }
 .assistant-card p { max-width: 430px; margin: 0; color: #123149; line-height: 1.48; }
 .assistant-card .button.primary { background: var(--navy-950); border-color: var(--navy-950); color: var(--white-cold); }
+.assistant-fab { position: fixed; right: 24px; bottom: 24px; z-index: 40; width: 68px; height: 68px; padding: 0; display: grid; place-items: center; border: 2px solid var(--navy-950); border-radius: 50%; background: var(--baby-500); box-shadow: 0 12px 30px rgba(0, 0, 0, .35), 0 0 0 5px rgba(124, 204, 244, .16); cursor: pointer; transition: transform .16s ease, background .16s ease, box-shadow .16s ease; }
+.assistant-fab:hover, .assistant-fab:focus-visible { background: var(--baby-300); box-shadow: 0 14px 34px rgba(0, 0, 0, .42), 0 0 0 7px rgba(124, 204, 244, .2); transform: translateY(-2px); }
+.assistant-fab img { width: 62px; height: 62px; object-fit: contain; }
+.assistant-fab-badge { position: absolute; right: -3px; top: -4px; width: 23px; height: 23px; display: grid; place-items: center; border: 2px solid var(--navy-950); border-radius: 50%; background: var(--navy-950); color: var(--baby-500); }
+.assistant-fab-dialog { display: grid; gap: 14px; }
+.assistant-fab-example, .assistant-fab-answer { padding: 14px; display: flex; align-items: flex-start; gap: 10px; border: 1px solid var(--navy-700); border-radius: var(--radius-control); line-height: 1.45; }
+.assistant-fab-example { background: #091e2e; color: var(--text-muted); }
+.assistant-fab-answer { background: rgba(124, 204, 244, .1); color: var(--baby-300); }
+.assistant-fab-answer p { margin: 0; white-space: pre-wrap; }
+.assistant-fab-dialog form { display: grid; gap: 12px; }
+.assistant-fab-dialog form .button { justify-self: end; }
 
 .period-total { display: grid; gap: 3px; text-align: right; }
 .period-total small { color: var(--text-muted); }
@@ -825,4 +837,8 @@ a { color: inherit; text-decoration: none; }
 
 .assistant-card {
   border-radius: 0;
+}
+
+@media (max-width: 700px) {
+  .assistant-fab { right: 16px; bottom: calc(78px + var(--safe-bottom)); }
 }

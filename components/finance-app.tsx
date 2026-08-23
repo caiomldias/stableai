@@ -16,6 +16,7 @@ import {
   SignOut,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { AssistantFab } from "@/components/assistant-fab";
 import { useLocale } from "@/components/locale-provider";
 import { ProfileSettings, UserAvatar } from "@/components/profile-settings";
 import { DashboardView } from "@/components/views/dashboard-view";
@@ -201,6 +202,7 @@ export function FinanceApp({
       <nav className="bottom-nav" aria-label="Principal">
         {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={23} weight={view === item.id ? "fill" : "regular"} /><span>{t(item.labelKey)}</span></button>)}
       </nav>
+      <AssistantFab data={data} accessToken={accessToken} />
       <Modal open={alertsOpen} title="Seus lembretes" description={`Avisos para os próximos ${data.notifications.daysBefore} dias.`} onClose={() => setAlertsOpen(false)}>
         <div className="alert-list">
           {alerts.map((item) => <article key={item.id}><span className="row-icon"><CalendarBlank size={20} /></span><p><strong>{item.title}</strong><small>{item.detail}</small></p><b>{item.amount}</b></article>)}
