@@ -15,6 +15,7 @@ import {
   Sparkle,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { ProfileSettings, UserAvatar } from "@/components/profile-settings";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { ExpensesView } from "@/components/views/expenses-view";
 import { InvestmentsView } from "@/components/views/investments-view";
@@ -74,12 +75,14 @@ export function FinanceApp({
   const [loading, setLoading] = useState(Boolean(session));
   const [notice, setNotice] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const accessToken = session?.access_token;
   const name = useMemo(() => {
     if (demo) return "Caio";
-    return session?.user.user_metadata?.full_name?.split(" ")[0] || session?.user.email?.split("@")[0] || "Olá";
+    return session?.user.user_metadata?.full_name || session?.user.user_metadata?.name || session?.user.email?.split("@")[0] || "Olá";
   }, [demo, session]);
+  const avatarUrl = demo ? undefined : (session?.user.user_metadata?.avatar_url || session?.user.user_metadata?.picture) as string | undefined;
   const alerts = useMemo(() => {
     const limit = new Date();
     limit.setHours(23, 59, 59, 999);
@@ -139,6 +142,11 @@ export function FinanceApp({
     if (error) setNotice("Não foi possível sair agora. Tente novamente.");
   }
 
+  function openProfile() {
+    if (demo) return setNotice("Entre em uma conta para editar nome, foto e senha.");
+    setProfileOpen(true);
+  }
+
   async function finishAccountDeletion() {
     await getSupabaseBrowser()?.auth.signOut();
     router.replace("/");
@@ -154,16 +162,17 @@ export function FinanceApp({
         <nav aria-label="Principal">
           {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={22} weight={view === item.id ? "fill" : "regular"} /><span>{item.label}</span></button>)}
         </nav>
-        <div className="sidebar-foot">
-          <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
+        <button className="sidebar-foot" type="button" onClick={openProfile} aria-label="Abrir configurações do perfil">
+          <UserAvatar name={name} url={avatarUrl} />
           <div><strong>{name}</strong><small>{demo ? "Demonstração" : "Conta pessoal"}</small></div>
-        </div>
+        </button>
       </aside>
 
       <main className="app-main">
         <header className="topbar">
           <div><span className="mobile-brand">StableAI</span><h1>{activeLabel}</h1></div>
           <div className="topbar-actions">
+            <button className="profile-shortcut" type="button" onClick={openProfile} aria-label="Abrir configurações do perfil"><UserAvatar name={name} url={avatarUrl} /></button>
             <button className="button icon-only ghost notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`Notificações${alerts.length ? `, ${alerts.length} pendentes` : ""}`}><Bell size={21} />{alerts.length > 0 && <span>{alerts.length}</span>}</button>
             <button className="button small ghost account-action" type="button" onClick={signOut} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
           </div>
@@ -191,6 +200,7 @@ export function FinanceApp({
           {!alerts.length && <div className="list-empty"><Bell size={28} /><span>Nenhum compromisso próximo.</span></div>}
         </div>
       </Modal>
+      {session && <ProfileSettings session={session} open={profileOpen} onClose={() => setProfileOpen(false)} onNotice={setNotice} />}
     </div>
   );
 }
