@@ -20,7 +20,7 @@ import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/locale-provider";
 import { getStoredCurrency } from "@/lib/locale";
 import { classifyTransaction, computeBudgetUsage, filterTransactions, fullDate, money, parseMoney, shortDate, totalsByCurrency } from "@/lib/finance";
-import type { Budget, Currency, FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
+import type { Budget, Currency, FinanceData, NoticeTone, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
 
 const filters: { id: "ALL" | TransactionKind; label: string }[] = [
   { id: "ALL", label: "Todos" },
@@ -40,7 +40,7 @@ const kindIcon = (kind: TransactionKind) => {
   return Wallet;
 };
 
-export function ExpensesView({ data, updateData }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void }) {
+export function ExpensesView({ data, updateData, onNotice }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; onNotice: (message: string, tone?: NoticeTone) => void }) {
   const { t } = useLocale();
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("ALL");
   const [search, setSearch] = useState("");
@@ -76,7 +76,7 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
         <div className="budget-grid">
           {budgetUsage.map((budget) => {
             const tone = budget.percentage >= 100 ? "danger" : budget.percentage >= 80 ? "warning" : "success";
-            return <article className="panel budget-card" key={budget.id}><div className="budget-top"><span className={`row-icon budget-${tone}`}><Gauge size={21} /></span><div><strong>{budget.category}</strong><small>{budget.currency}</small></div><div className="budget-actions"><button type="button" aria-label={`Editar teto de ${budget.category}`} onClick={() => setBudgetEditor(budget)}><PencilSimple size={17} /></button><button type="button" aria-label={`Excluir teto de ${budget.category}`} onClick={() => updateData((current) => ({ ...current, budgets: current.budgets.filter((item) => item.id !== budget.id) }))}><Trash size={17} /></button></div></div><div className="budget-values"><strong>{money(budget.spentCents, budget.currency)} de {money(budget.monthlyLimitCents, budget.currency)}</strong><span>{Math.round(budget.percentage)}%</span></div><div className={`budget-progress ${tone}`}><span style={{ width: `${Math.min(budget.percentage, 100)}%` }} /></div></article>;
+            return <article className="panel budget-card" key={budget.id}><div className="budget-top"><span className={`row-icon budget-${tone}`}><Gauge size={21} /></span><div><strong>{budget.category}</strong><small>{budget.currency}</small></div><div className="budget-actions"><button type="button" aria-label={`Editar teto de ${budget.category}`} onClick={() => setBudgetEditor(budget)}><PencilSimple size={17} /></button><button type="button" aria-label={`Excluir teto de ${budget.category}`} onClick={() => { updateData((current) => ({ ...current, budgets: current.budgets.filter((item) => item.id !== budget.id) })); onNotice(`Teto de ${budget.category} excluído.`, "success"); }}><Trash size={17} /></button></div></div><div className="budget-values"><strong>{money(budget.spentCents, budget.currency)} de {money(budget.monthlyLimitCents, budget.currency)}</strong><span>{Math.round(budget.percentage)}%</span></div><div className={`budget-progress ${tone}`}><span style={{ width: `${Math.min(budget.percentage, 100)}%` }} /></div></article>;
           })}
           {!budgetUsage.length && <div className="panel budget-empty"><Gauge size={24} /><span>Crie seu primeiro teto mensal.</span></div>}
         </div>
@@ -114,14 +114,17 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
             ? [...current.sharedExpenses.filter((item) => item.transactionId !== transaction.id), shared]
             : current.sharedExpenses,
         }));
+        onNotice("Gasto atualizado com sucesso.", "success");
         setSelected(null);
       }} />
       <BudgetForm key={`budget-${budgetEditor === "new" ? "new" : budgetEditor?.id ?? "none"}`} budget={budgetEditor === "new" ? undefined : budgetEditor ?? undefined} open={Boolean(budgetEditor)} onClose={() => setBudgetEditor(null)} onSave={(budget) => {
         updateData((current) => ({ ...current, budgets: [...current.budgets.filter((item) => item.id !== budget.id), budget] }));
+        onNotice("Teto mensal salvo com sucesso.", "success");
         setBudgetEditor(null);
       }} />
       {manualOpen && <ManualTransactionForm open accounts={data.accounts} onClose={() => setManualOpen(false)} onSave={(transaction) => {
         updateData((current) => ({ ...current, transactions: [transaction, ...current.transactions] }));
+        onNotice("Lançamento salvo com sucesso.", "success");
         setManualOpen(false);
       }} />}
     </div>

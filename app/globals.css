@@ -288,6 +288,13 @@ a { color: inherit; text-decoration: none; }
 .notification-button > span { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center; border: 2px solid var(--navy-950); border-radius: 999px; background: var(--baby-500); color: var(--navy-950); font: 750 .65rem var(--font-brand); }
 .view-content { width: min(1400px, 100%); margin: 0 auto; padding: 34px clamp(24px, 4vw, 56px) 64px; }
 .notice { margin: 18px clamp(24px, 4vw, 56px) 0; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: var(--rule-width) solid rgba(124, 204, 244, .32); border-radius: var(--radius-control); background: rgba(124, 204, 244, .1); color: var(--baby-300); }
+.notice-content { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.notice-content > span { line-height: 1.45; }
+.notice-success { border-color: rgba(111, 211, 162, .42); background: rgba(111, 211, 162, .1); color: #a4e8c5; }
+.notice-success svg { color: var(--success); }
+.notice-error { border-color: rgba(239, 140, 146, .48); background: rgba(239, 140, 146, .1); color: #ffd7da; }
+.notice-error svg { color: var(--danger); }
+.notice-info svg { color: var(--baby-500); }
 .notice button { border: 0; background: transparent; color: var(--white-cold); cursor: pointer; font-weight: 650; }
 .bottom-nav { display: none; }
 

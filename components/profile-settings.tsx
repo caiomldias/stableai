@@ -6,6 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 import { Camera, LockKey, User, WarningCircle } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import type { NoticeTone } from "@/lib/types";
 
 function profileName(session: Session) {
   return session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split("@")[0] || "Usuário";
@@ -15,7 +16,7 @@ export function UserAvatar({ name, url, large = false }: { name: string; url?: s
   return <span className={`avatar${large ? " avatar-large" : ""}`}>{url ? <Image src={url} alt="" width={large ? 76 : 40} height={large ? 76 : 40} unoptimized /> : name.slice(0, 1).toUpperCase()}</span>;
 }
 
-export function ProfileSettings({ session, open, onClose, onNotice }: { session: Session; open: boolean; onClose: () => void; onNotice: (message: string) => void }) {
+export function ProfileSettings({ session, open, onClose, onNotice }: { session: Session; open: boolean; onClose: () => void; onNotice: (message: string, tone?: NoticeTone) => void }) {
   const currentAvatar = (session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture) as string | undefined;
   const hasPassword = session.user.identities?.some((identity) => identity.provider === "email") ?? false;
   const [name, setName] = useState(() => profileName(session));
@@ -44,6 +45,7 @@ export function ProfileSettings({ session, open, onClose, onNotice }: { session:
     if (!file) return;
     if (!(["image/jpeg", "image/png", "image/webp"].includes(file.type)) || file.size > 2_097_152) {
       setMessage("Escolha uma imagem JPG, PNG ou WebP de até 2 MB.");
+      onNotice("A foto não foi alterada. Use JPG, PNG ou WebP de até 2 MB.", "error");
       return;
     }
     if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
@@ -55,7 +57,7 @@ export function ProfileSettings({ session, open, onClose, onNotice }: { session:
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
     const client = getSupabaseBrowser();
-    if (!client) return setMessage("Supabase não configurado.");
+    if (!client) { setMessage("Supabase não configurado."); onNotice("Não foi possível salvar o perfil: Supabase não configurado.", "error"); return; }
     setProfileBusy(true);
     setMessage("");
     try {
@@ -68,10 +70,12 @@ export function ProfileSettings({ session, open, onClose, onNotice }: { session:
       }
       const { error } = await client.auth.updateUser({ data: { ...session.user.user_metadata, full_name: name.trim(), avatar_url: avatarUrl } });
       if (error) throw error;
-      onNotice("Perfil atualizado com sucesso.");
+      onNotice("Perfil atualizado com sucesso.", "success");
       resetAndClose();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Não foi possível atualizar o perfil.");
+      const detail = error instanceof Error ? error.message : "Não foi possível atualizar o perfil.";
+      setMessage(detail);
+      onNotice(detail, "error");
     } finally {
       setProfileBusy(false);
     }
@@ -79,9 +83,9 @@ export function ProfileSettings({ session, open, onClose, onNotice }: { session:
 
   async function changePassword(event: FormEvent) {
     event.preventDefault();
-    if (password !== confirmation) return setMessage("As novas senhas não coincidem.");
+    if (password !== confirmation) { setMessage("As novas senhas não coincidem."); onNotice("As novas senhas não coincidem.", "error"); return; }
     const client = getSupabaseBrowser();
-    if (!client) return setMessage("Supabase não configurado.");
+    if (!client) { setMessage("Supabase não configurado."); onNotice("Não foi possível alterar a senha: Supabase não configurado.", "error"); return; }
     setPasswordBusy(true);
     setMessage("");
     try {
@@ -92,10 +96,12 @@ export function ProfileSettings({ session, open, onClose, onNotice }: { session:
       setCurrentPassword("");
       setPassword("");
       setConfirmation("");
-      onNotice(hasPassword ? "Senha alterada com sucesso." : "Senha criada com sucesso.");
+      onNotice(hasPassword ? "Senha alterada com sucesso." : "Senha criada com sucesso.", "success");
       resetAndClose();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Não foi possível alterar a senha.");
+      const detail = error instanceof Error ? error.message : "Não foi possível alterar a senha.";
+      setMessage(detail);
+      onNotice(detail, "error");
     } finally {
       setPasswordBusy(false);
     }

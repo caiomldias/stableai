@@ -8,12 +8,15 @@ import {
   Bell,
   CalendarBlank,
   ChartLineUp,
+  CheckCircle,
   House,
+  Info,
   ListBullets,
   LockKey,
   PiggyBank,
   Receipt,
   SignOut,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
 import { AssistantFab } from "@/components/assistant-fab";
@@ -28,7 +31,7 @@ import { demoData } from "@/lib/demo-data";
 import { emptyFinanceData } from "@/lib/empty-data";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { money, shortDate } from "@/lib/finance";
-import type { FinanceData } from "@/lib/types";
+import type { FinanceData, NoticeTone } from "@/lib/types";
 
 export type AppView = "home" | "expenses" | "plan" | "investments" | "more";
 
@@ -77,11 +80,21 @@ export function FinanceApp({
     catch { window.localStorage.removeItem("stable-ia-demo"); return demoData; }
   });
   const [loading, setLoading] = useState(Boolean(session));
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const accessToken = session?.access_token;
+  const showNotice = useCallback((message: string, tone: NoticeTone = "info") => {
+    setNotice({ message, tone });
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 5200);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
   const name = useMemo(() => {
     if (demo) return "Caio";
     return session?.user.user_metadata?.full_name || session?.user.user_metadata?.name || session?.user.email?.split("@")[0] || "Olá";
@@ -119,9 +132,9 @@ export function FinanceApp({
         return response.json() as Promise<FinanceData>;
       })
       .then(setData)
-      .catch((error: Error) => setNotice(error.message))
+      .catch((error: Error) => showNotice(error.message, "error"))
       .finally(() => setLoading(false));
-  }, [session, accessToken]);
+  }, [session, accessToken, showNotice]);
 
   const updateData = useCallback((updater: (current: FinanceData) => FinanceData) => {
     setData((current) => {
@@ -132,22 +145,22 @@ export function FinanceApp({
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify(next),
-        }).catch(() => setNotice("A alteração ficou no aparelho e será reenviada quando houver conexão."));
+        }).catch(() => showNotice("A alteração ficou no aparelho e será reenviada quando houver conexão.", "error"));
       }
       return next;
     });
-  }, [accessToken, demo]);
+  }, [accessToken, demo, showNotice]);
 
   async function signOut() {
     const confirmed = window.confirm(demo ? "Sair da demonstração?" : "Sair desta conta? Você poderá entrar com outra conta em seguida.");
     if (!confirmed) return;
     if (demo) return onExitDemo();
     const { error } = await getSupabaseBrowser()?.auth.signOut() ?? {};
-    if (error) setNotice("Não foi possível sair agora. Tente novamente.");
+    if (error) showNotice("Não foi possível sair agora. Tente novamente.", "error");
   }
 
   function openProfile() {
-    if (demo) return setNotice("Entre em uma conta para editar nome, foto e senha.");
+    if (demo) return showNotice("Entre em uma conta para editar nome, foto e senha.", "info");
     setProfileOpen(true);
   }
 
@@ -186,15 +199,15 @@ export function FinanceApp({
           </div>
         </header>
 
-        {notice && <div className="notice" role="status"><span>{notice}</span><button onClick={() => setNotice("")} type="button">Fechar</button></div>}
+        {notice && <div className={`notice notice-${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"} aria-atomic="true"><span className="notice-content">{notice.tone === "success" ? <CheckCircle size={20} weight="fill" /> : notice.tone === "error" ? <WarningCircle size={20} weight="fill" /> : <Info size={20} weight="fill" />}<span>{notice.message}</span></span><button onClick={() => setNotice(null)} type="button">Fechar</button></div>}
 
         {loading ? <LoadingSkeleton /> : (
           <div className="view-content">
-            {view === "home" && <DashboardView data={data} setView={setView} demo={demo} onNotice={setNotice} />}
-            {view === "expenses" && <ExpensesView data={data} updateData={updateData} />}
-            {view === "plan" && <PlanningView data={data} updateData={updateData} accessToken={accessToken} />}
+            {view === "home" && <DashboardView data={data} setView={setView} demo={demo} onNotice={showNotice} />}
+            {view === "expenses" && <ExpensesView data={data} updateData={updateData} onNotice={showNotice} />}
+            {view === "plan" && <PlanningView data={data} updateData={updateData} accessToken={accessToken} onNotice={showNotice} />}
             {view === "investments" && <InvestmentsView data={data} />}
-            {view === "more" && <MoreView data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={signOut} onAccountDeleted={finishAccountDeletion} onNotice={setNotice} />}
+            {view === "more" && <MoreView data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={signOut} onAccountDeleted={finishAccountDeletion} onNotice={showNotice} />}
           </div>
         )}
       </main>
@@ -209,7 +222,7 @@ export function FinanceApp({
           {!alerts.length && <div className="list-empty"><Bell size={28} /><span>Nenhum compromisso próximo.</span></div>}
         </div>
       </Modal>
-      {session && <ProfileSettings session={session} open={profileOpen} onClose={() => setProfileOpen(false)} onNotice={setNotice} />}
+      {session && <ProfileSettings session={session} open={profileOpen} onClose={() => setProfileOpen(false)} onNotice={showNotice} />}
     </div>
   );
 }
