@@ -22,6 +22,7 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { useLocale } from "@/components/locale-provider";
 import { getStoredCurrency } from "@/lib/locale";
 import { calculateGoal, fullDate, money, parseMoney, refreshGoal, totalsByCurrency } from "@/lib/finance";
 import type { Currency, FinanceData, Frequency, PurchaseGoal, Vault, WishlistItem } from "@/lib/types";
@@ -39,6 +40,7 @@ const tabs = [
 const frequencyLabel: Record<Frequency, string> = { DAILY: "por dia", WEEKLY: "por semana", MONTHLY: "por mês" };
 
 export function PlanningView({ data, updateData, accessToken }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; accessToken?: string }) {
+  const { t } = useLocale();
   const [tab, setTab] = useState<Tab>("vaults");
   const [modal, setModal] = useState<PlanningModal>(null);
   const [activeVault, setActiveVault] = useState<Vault | null>(null);
@@ -65,8 +67,8 @@ export function PlanningView({ data, updateData, accessToken }: { data: FinanceD
 
   return (
     <div className="stack">
-      <div className="page-heading"><div><h2>Planeje o que vem depois</h2><p>Transforme intenção em um valor possível de guardar.</p></div>{tab !== "assistant" && currentCount > 0 && <button className="button primary" type="button" aria-label={`Adicionar ${tab === "vaults" ? "cofrinho" : tab === "goals" ? "meta" : "desejo"}`} onClick={openAdd}><Plus size={19} /><span>Adicionar</span></button>}</div>
-      <div className="tab-bar" role="tablist" aria-label="Planejamento">{tabs.map((item) => <button role="tab" aria-selected={tab === item.id} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{item.label}</button>)}</div>
+      <div className="page-heading"><div><h2>{t("plan.title")}</h2><p>{t("plan.subtitle")}</p></div>{tab !== "assistant" && currentCount > 0 && <button className="button primary" type="button" aria-label={`${t("plan.add")} ${tab === "vaults" ? t("plan.vaults") : tab === "goals" ? t("plan.goals") : t("plan.wishlist")}`} onClick={openAdd}><Plus size={19} /><span>{t("plan.add")}</span></button>}</div>
+      <div className="tab-bar" role="tablist" aria-label={t("plan.title")}>{tabs.map((item) => <button role="tab" aria-selected={tab === item.id} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{t(`plan.${item.id}` as "plan.vaults" | "plan.goals" | "plan.wishlist" | "plan.assistant")}</button>)}</div>
 
       {feedback && <div className="planning-feedback" role="status" aria-live="polite"><CheckCircle size={21} weight="fill" /><span>{feedback}</span></div>}
 

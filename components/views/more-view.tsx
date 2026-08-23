@@ -26,6 +26,7 @@ import {
   unsubscribeFromPush,
 } from "@/components/service-worker-registration";
 import { Modal } from "@/components/ui/modal";
+import { useLocale } from "@/components/locale-provider";
 import { getStoredCurrency } from "@/lib/locale";
 import { fullDate, money, parseMoney, shortDate } from "@/lib/finance";
 import type { Boleto, Connection, Currency, FinanceData } from "@/lib/types";
@@ -41,6 +42,7 @@ const tabs = [
 ];
 
 export function MoreView({ data, updateData, accessToken, demo, onSignOut, onAccountDeleted, onNotice }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void; accessToken?: string; demo: boolean; onSignOut: () => void; onAccountDeleted: () => void; onNotice: (message: string) => void }) {
+  const { t } = useLocale();
   const [tab, setTab] = useState<Tab>("bills");
   const [billOpen, setBillOpen] = useState(false);
   const [disconnect, setDisconnect] = useState<Connection | null>(null);
@@ -69,7 +71,7 @@ export function MoreView({ data, updateData, accessToken, demo, onSignOut, onAcc
   }
 
   return <div className="stack">
-    <div className="page-heading"><div><h2>Organização e ajustes</h2><p>Boletos, contas recorrentes, cobranças e conexões.</p></div>{tab === "bills" && <button className="button primary" type="button" aria-label="Adicionar boleto" onClick={() => setBillOpen(true)}><Barcode size={18} /><span>Novo boleto</span></button>}</div>
+    <div className="page-heading"><div><h2>{t("more.title")}</h2><p>{t("more.subtitle")}</p></div>{tab === "bills" && <button className="button primary" type="button" aria-label={t("more.newBill")} onClick={() => setBillOpen(true)}><Barcode size={18} /><span>{t("more.newBill")}</span></button>}</div>
     <div className="tab-bar more-tabs" role="tablist" aria-label="Mais recursos">{tabs.map((item) => { const locked = demo && (item.id === "connections" || item.id === "settings"); return <button role="tab" aria-selected={tab === item.id} aria-label={locked ? `${item.label}, disponível após criar uma conta` : item.label} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{item.label}{locked && <LockKey className="tab-lock" size={14} />}</button>; })}</div>
 
     {tab === "bills" && <Bills data={data} />}

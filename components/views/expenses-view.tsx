@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { useLocale } from "@/components/locale-provider";
 import { getStoredCurrency } from "@/lib/locale";
 import { classifyTransaction, computeBudgetUsage, filterTransactions, fullDate, money, parseMoney, shortDate, totalsByCurrency } from "@/lib/finance";
 import type { Budget, Currency, FinanceData, SharedExpense, Transaction, TransactionKind } from "@/lib/types";
@@ -40,6 +41,7 @@ const kindIcon = (kind: TransactionKind) => {
 };
 
 export function ExpensesView({ data, updateData }: { data: FinanceData; updateData: (updater: (current: FinanceData) => FinanceData) => void }) {
+  const { t } = useLocale();
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("ALL");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -67,10 +69,10 @@ export function ExpensesView({ data, updateData }: { data: FinanceData; updateDa
 
   return (
     <div className="stack">
-      <div className="page-heading"><div><h2>Gastos e movimentações</h2><p>Encontre, classifique e anote cada lançamento.</p></div><div className="expense-heading-actions"><span className="period-total"><small>Despesas filtradas</small>{expenseTotals.map((total) => <strong key={total.currency}>{money(total.expenseCents, total.currency)}</strong>)}</span><button className="button primary" type="button" aria-label="Adicionar lançamento manual" onClick={() => setManualOpen(true)}><Plus size={18} /><span>Adicionar lançamento</span></button></div></div>
+      <div className="page-heading"><div><h2>{t("expenses.title")}</h2><p>{t("expenses.subtitle")}</p></div><div className="expense-heading-actions"><span className="period-total"><small>Despesas filtradas</small>{expenseTotals.map((total) => <strong key={total.currency}>{money(total.expenseCents, total.currency)}</strong>)}</span><button className="button primary" type="button" aria-label={t("expenses.add")} onClick={() => setManualOpen(true)}><Plus size={18} /><span>{t("expenses.add")}</span></button></div></div>
 
       <section className="budget-section">
-        <div className="section-heading"><div><h3>Orçamento do mês</h3><p>Defina tetos por categoria e acompanhe o consumo.</p></div><button className="button small ghost" type="button" onClick={() => setBudgetEditor("new")}><Plus size={17} /> Novo teto</button></div>
+        <div className="section-heading"><div><h3>{t("expenses.budget")}</h3><p>Defina tetos por categoria e acompanhe o consumo.</p></div><button className="button small ghost" type="button" onClick={() => setBudgetEditor("new")}><Plus size={17} /> {t("expenses.newBudget")}</button></div>
         <div className="budget-grid">
           {budgetUsage.map((budget) => {
             const tone = budget.percentage >= 100 ? "danger" : budget.percentage >= 80 ? "warning" : "success";

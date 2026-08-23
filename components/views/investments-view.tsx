@@ -9,7 +9,7 @@ import type { Currency, FinanceData } from "@/lib/types";
 const colors = ["#7CCCF4", "#6FD3A2", "#B9A6F4", "#F1C77C", "#5997BA"];
 
 export function InvestmentsView({ data }: { data: FinanceData }) {
-  const { currency } = useLocale();
+  const { currency, t } = useLocale();
   const totals = (["BRL", "USD"] as Currency[]).map((currency) => ({
     currency,
     balance: data.investments.filter((item) => item.currency === currency).reduce((sum, item) => sum + item.balanceCents, 0),
@@ -20,7 +20,7 @@ export function InvestmentsView({ data }: { data: FinanceData }) {
   const allocation = [...selectedTypes.entries()].map(([name, value]) => ({ name, value }));
 
   return <div className="stack">
-    <div className="page-heading"><div><h2>Investimentos</h2><p>Patrimônio importado das instituições conectadas.</p></div><span className="coverage-badge"><Bank size={17} /> Dados da Pluggy</span></div>
+    <div className="page-heading"><div><h2>{t("investments.title")}</h2><p>{t("investments.subtitle")}</p></div><span className="coverage-badge"><Bank size={17} /> Dados da Pluggy</span></div>
 
     <section className="investment-summary">
       {totals.map((item) => {
