@@ -9,6 +9,7 @@ import {
   ChartLineUp,
   House,
   ListBullets,
+  LockKey,
   PiggyBank,
   Receipt,
   SignOut,
@@ -165,14 +166,15 @@ export function FinanceApp({
         <button className="sidebar-foot" type="button" onClick={openProfile} aria-label="Abrir configurações do perfil">
           <UserAvatar name={name} url={avatarUrl} />
           <div><strong>{name}</strong><small>{demo ? "Demonstração" : "Conta pessoal"}</small></div>
+          {demo && <LockKey className="sidebar-lock" size={16} aria-label="Disponível apenas para contas" />}
         </button>
       </aside>
 
       <main className="app-main">
         <header className="topbar">
-          <div><span className="mobile-brand">StableAI</span><h1>{activeLabel}</h1></div>
+          <div className="topbar-title"><span className="mobile-brand">StableAI</span><h1>{activeLabel}</h1>{demo && <span className="guest-badge"><LockKey size={14} /> Convidado</span>}</div>
           <div className="topbar-actions">
-            <button className="profile-shortcut" type="button" onClick={openProfile} aria-label="Abrir configurações do perfil"><UserAvatar name={name} url={avatarUrl} /></button>
+            <button className={`profile-shortcut${demo ? " guest-locked" : ""}`} type="button" onClick={openProfile} aria-label="Abrir configurações do perfil"><UserAvatar name={name} url={avatarUrl} />{demo && <LockKey className="profile-lock" size={14} />}</button>
             <button className="button icon-only ghost notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`Notificações${alerts.length ? `, ${alerts.length} pendentes` : ""}`}><Bell size={21} />{alerts.length > 0 && <span>{alerts.length}</span>}</button>
             <button className="button small ghost account-action" type="button" onClick={signOut} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
           </div>
@@ -182,7 +184,7 @@ export function FinanceApp({
 
         {loading ? <LoadingSkeleton /> : (
           <div className="view-content">
-            {view === "home" && <DashboardView data={data} setView={setView} />}
+            {view === "home" && <DashboardView data={data} setView={setView} demo={demo} onNotice={setNotice} />}
             {view === "expenses" && <ExpensesView data={data} updateData={updateData} />}
             {view === "plan" && <PlanningView data={data} updateData={updateData} accessToken={accessToken} />}
             {view === "investments" && <InvestmentsView data={data} />}

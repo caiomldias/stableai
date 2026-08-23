@@ -10,6 +10,7 @@ import {
   CreditCard,
   CurrencyDollar,
   HandCoins,
+  LockKey,
   Plus,
   Wallet,
 } from "@phosphor-icons/react";
@@ -31,7 +32,7 @@ import type { FinanceData } from "@/lib/types";
 
 const palette = ["#7CCCF4", "#B9E4FA", "#5997BA", "#3C718F", "#A8C0CF"];
 
-export function DashboardView({ data, setView }: { data: FinanceData; setView: (view: AppView) => void }) {
+export function DashboardView({ data, setView, demo, onNotice }: { data: FinanceData; setView: (view: AppView) => void; demo: boolean; onNotice: (message: string) => void }) {
   const totals = totalsByCurrency(data.transactions);
   const brl = totals.find((item) => item.currency === "BRL")!;
   const usd = totals.find((item) => item.currency === "USD")!;
@@ -50,7 +51,7 @@ export function DashboardView({ data, setView }: { data: FinanceData; setView: (
           <h2>Seu dinheiro em um só lugar.</h2>
           <p>Dados demonstrativos para você explorar todos os recursos.</p>
         </div>
-        <button className="button primary" type="button" onClick={() => setView("more")}><Plus size={19} /><span>Conectar banco</span></button>
+        <button className={`button primary${demo ? " guest-locked" : ""}`} type="button" onClick={() => demo ? onNotice("Conectar bancos está disponível apenas para contas reais.") : setView("more")} aria-disabled={demo}><Plus size={19} />{demo && <LockKey size={16} />}<span>Conectar banco</span></button>
       </section>
 
       <section className="metric-strip" aria-label="Resumo financeiro">

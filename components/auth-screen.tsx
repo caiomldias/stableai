@@ -142,8 +142,9 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
         </button>
 
         <div className="demo-access">
-          <button className="button ghost full" type="button" onClick={onDemo}>Explorar demonstração</button>
-          {!isSupabaseConfigured && <small>Modo de demonstração ativo. Configure o Supabase para usar login real.</small>}
+          <button className="button ghost full" type="button" onClick={onDemo}>Entrar como convidado</button>
+          <small>Veja dados fictícios e teste os recursos sem conectar uma conta ou banco.</small>
+          {!isSupabaseConfigured && <small>O modo de demonstração está disponível enquanto o Supabase não estiver configurado.</small>}
         </div>
       </section>
     </main>

@@ -11,6 +11,7 @@ import {
   CreditCard,
   DownloadSimple,
   Info,
+  LockKey,
   SignOut,
   Trash,
   UserCircle,
@@ -68,17 +69,21 @@ export function MoreView({ data, updateData, accessToken, demo, onSignOut, onAcc
 
   return <div className="stack">
     <div className="page-heading"><div><h2>Organização e ajustes</h2><p>Boletos, contas recorrentes, cobranças e conexões.</p></div>{tab === "bills" && <button className="button primary" type="button" aria-label="Adicionar boleto" onClick={() => setBillOpen(true)}><Barcode size={18} /><span>Novo boleto</span></button>}</div>
-    <div className="tab-bar more-tabs" role="tablist" aria-label="Mais recursos">{tabs.map((item) => <button role="tab" aria-selected={tab === item.id} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{item.label}</button>)}</div>
+    <div className="tab-bar more-tabs" role="tablist" aria-label="Mais recursos">{tabs.map((item) => { const locked = demo && (item.id === "connections" || item.id === "settings"); return <button role="tab" aria-selected={tab === item.id} aria-label={locked ? `${item.label}, disponível após criar uma conta` : item.label} className={tab === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setTab(item.id)}><item.icon size={19} />{item.label}{locked && <LockKey className="tab-lock" size={14} />}</button>; })}</div>
 
     {tab === "bills" && <Bills data={data} />}
     {tab === "recurring" && <Recurring data={data} updateData={updateData} />}
     {tab === "charges" && <Charges data={data} updateData={updateData} />}
-    {tab === "connections" && <Connections data={data} accessToken={accessToken} onStatus={onNotice} onDisconnect={setDisconnect} />}
-    {tab === "settings" && <Settings data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={onSignOut} onAccountDeleted={onAccountDeleted} onNotice={onNotice} />}
+    {tab === "connections" && (demo ? <GuestLocked title="Conectar bancos" description="Crie uma conta para conectar Nubank, Itaú e outras instituições com segurança." onSignOut={onSignOut} /> : <Connections data={data} accessToken={accessToken} onStatus={onNotice} onDisconnect={setDisconnect} />)}
+    {tab === "settings" && (demo ? <GuestLocked title="Ajustes da conta" description="Personalização, notificações e dados pessoais ficam disponíveis depois do cadastro." onSignOut={onSignOut} /> : <Settings data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={onSignOut} onAccountDeleted={onAccountDeleted} onNotice={onNotice} />)}
 
     <BoletoForm open={billOpen} onClose={() => setBillOpen(false)} onSubmit={(item) => { updateData((current) => ({ ...current, boletos: [...current.boletos, item] })); setBillOpen(false); }} />
     <DisconnectModal connection={disconnect} onClose={() => setDisconnect(null)} onKeep={() => disconnectInstitution(false)} onDelete={() => disconnectInstitution(true)} />
   </div>;
+}
+
+function GuestLocked({ title, description, onSignOut }: { title: string; description: string; onSignOut: () => void }) {
+  return <section className="panel guest-locked-panel"><LockKey size={34} /><h3>{title}</h3><p>{description}</p><button className="button primary" type="button" onClick={onSignOut}>Criar conta para liberar</button></section>;
 }
 
 function Bills({ data }: { data: FinanceData }) {
