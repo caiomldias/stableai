@@ -2,6 +2,43 @@
 
 Assistente e organizador financeiro pessoal instalável em Android e iOS.
 
+## Projeto pessoal
+
+Criei o StableAI para entender melhor para onde meu dinheiro vai e transformar minhas finanças em decisões simples. Ele reúne contas, gastos e planos em uma única interface, ajudando a acompanhar o presente e planejar compras futuras sem depender de várias planilhas ou aplicativos bancários.
+
+O StableAI é somente um assistente e organizador: ele não movimenta dinheiro, não faz PIX e não paga boletos.
+
+## O que ele faz
+
+- Conecta instituições financeiras pela Pluggy e sincroniza contas diariamente.
+- Organiza gastos por PIX, cartão, boleto, recorrência e categoria.
+- Exibe gráficos, orçamentos mensais e lançamentos manuais em BRL ou USD.
+- Mostra cartões, boletos disponíveis, contas recorrentes e investimentos.
+- Registra compras emprestadas no cartão e lembra quem precisa pagar.
+- Cria cofrinhos, metas de compra e listas de desejos com previsão de prazo.
+- Oferece um instrutor financeiro por IA usando somente dados agregados.
+- Envia lembretes opcionais no aplicativo, por e-mail ou notificação push.
+
+## Como funciona
+
+1. O usuário entra pelo Supabase Auth e escolhe uma instituição no Pluggy Connect.
+2. As rotas seguras do Next.js consultam a Pluggy; credenciais bancárias nunca passam pelo StableAI.
+3. Contas, transações, boletos compatíveis e investimentos são consolidados no PostgreSQL do Supabase.
+4. A interface classifica os gastos e preserva ajustes pessoais, como categorias, metas e cobranças.
+5. Um Cloudflare Worker executa a sincronização diária e processa os lembretes.
+6. Quando acionada, a IA recebe apenas resumos financeiros, sem CPF, credenciais ou linhas digitáveis.
+
+## Linguagens e tecnologias
+
+| Área | Tecnologias |
+| --- | --- |
+| Aplicativo e APIs | TypeScript, Next.js 16, React 19 e Zod |
+| Interface | CSS, Radix Themes, Phosphor Icons e Recharts |
+| Banco e segurança | PostgreSQL/PLpgSQL, Supabase Auth e Row Level Security |
+| Integração financeira | Pluggy Connect e API Pluggy |
+| Infraestrutura | Cloudflare Workers, OpenNext e PWA/service worker |
+| Qualidade | Vitest, ESLint e TypeScript typecheck |
+
 ## Executar localmente
 
 ```bash
