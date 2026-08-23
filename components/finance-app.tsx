@@ -195,7 +195,7 @@ export function FinanceApp({
             </button>
             <button className={`profile-shortcut${demo ? " guest-locked" : ""}`} type="button" onClick={openProfile} aria-label="Abrir configurações do perfil"><UserAvatar name={name} url={avatarUrl} />{demo && <LockKey className="profile-lock" size={14} />}</button>
             <button className="button icon-only ghost notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`Notificações${alerts.length ? `, ${alerts.length} pendentes` : ""}`}><Bell size={21} />{alerts.length > 0 && <span>{alerts.length}</span>}</button>
-            <button className="button small ghost account-action" type="button" onClick={signOut} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
+            <button className="button small ghost account-action" type="button" onClick={signOut} aria-label={demo ? "Sair da demonstração" : "Sair ou trocar de conta"} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
           </div>
         </header>
 
