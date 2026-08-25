@@ -148,17 +148,17 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
           </form>
         )}
 
+        <div className="demo-access">
+          <button className="button primary full" type="button" onClick={onDemo}>{t("auth.demo")}</button>
+          <small>Veja dados fictícios e teste os recursos sem conectar uma conta ou banco.</small>
+          {!isSupabaseConfigured && <small>O modo de demonstração está disponível enquanto o Supabase não estiver configurado.</small>}
+        </div>
+
         {message && <p className="auth-message" role="status">{message}</p>}
 
         <button className="text-button" type="button" onClick={() => setIsSignUp((value) => !value)}>
           {isSignUp ? "Já tenho uma conta" : "Ainda não tenho conta"}
         </button>
-
-        <div className="demo-access">
-          <button className="button ghost full" type="button" onClick={onDemo}>{t("auth.demo")}</button>
-          <small>Veja dados fictícios e teste os recursos sem conectar uma conta ou banco.</small>
-          {!isSupabaseConfigured && <small>O modo de demonstração está disponível enquanto o Supabase não estiver configurado.</small>}
-        </div>
       </section>
     </main>
   );
