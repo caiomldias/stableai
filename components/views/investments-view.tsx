@@ -2,23 +2,25 @@
 
 import { Bank, ChartDonut, Coins, TrendDown, TrendUp, Wallet } from "@phosphor-icons/react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { useLocale } from "@/components/locale-provider";
 import { money } from "@/lib/finance";
 import type { Currency, FinanceData } from "@/lib/types";
 
 const colors = ["#7CCCF4", "#6FD3A2", "#B9A6F4", "#F1C77C", "#5997BA"];
 
 export function InvestmentsView({ data }: { data: FinanceData }) {
+  const { currency, t } = useLocale();
   const totals = (["BRL", "USD"] as Currency[]).map((currency) => ({
     currency,
     balance: data.investments.filter((item) => item.currency === currency).reduce((sum, item) => sum + item.balanceCents, 0),
     original: data.investments.filter((item) => item.currency === currency).reduce((sum, item) => sum + (item.amountOriginalCents ?? 0), 0),
   }));
-  const brlTypes = new Map<string, number>();
-  data.investments.filter((item) => item.currency === "BRL").forEach((item) => brlTypes.set(item.type, (brlTypes.get(item.type) ?? 0) + item.balanceCents / 100));
-  const allocation = [...brlTypes.entries()].map(([name, value]) => ({ name, value }));
+  const selectedTypes = new Map<string, number>();
+  data.investments.filter((item) => item.currency === currency).forEach((item) => selectedTypes.set(item.type, (selectedTypes.get(item.type) ?? 0) + item.balanceCents / 100));
+  const allocation = [...selectedTypes.entries()].map(([name, value]) => ({ name, value }));
 
   return <div className="stack">
-    <div className="page-heading"><div><h2>Investimentos</h2><p>Patrimônio importado das instituições conectadas.</p></div><span className="coverage-badge"><Bank size={17} /> Dados da Pluggy</span></div>
+    <div className="page-heading"><div><h2>{t("investments.title")}</h2><p>{t("investments.subtitle")}</p></div><span className="coverage-badge"><Bank size={17} /> Dados da Pluggy</span></div>
 
     <section className="investment-summary">
       {totals.map((item) => {
@@ -29,10 +31,10 @@ export function InvestmentsView({ data }: { data: FinanceData }) {
 
     <section className="grid-two">
       <article className="panel allocation-panel">
-        <div className="panel-header"><div><h3>Distribuição por tipo</h3><p>Investimentos em reais</p></div><ChartDonut size={23} color="#7CCCF4" /></div>
+        <div className="panel-header"><div><h3>Distribuição por tipo</h3><p>Investimentos em {currency}</p></div><ChartDonut size={23} color="#7CCCF4" /></div>
         <div className="allocation-layout">
-          <div className="allocation-chart">{allocation.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={allocation} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="87%" paddingAngle={4} stroke="none">{allocation.map((_item, index) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip contentStyle={{ background: "#0D2538", border: "1px solid #24465C", borderRadius: 12 }} formatter={(value) => money(Number(value) * 100)} /></PieChart></ResponsiveContainer> : <div className="chart-empty"><Coins size={27} />Sem investimentos em reais.</div>}</div>
-          <div className="allocation-legend">{allocation.map((item, index) => <div key={item.name}><span style={{ background: colors[index % colors.length] }} /><p><strong>{item.name}</strong><small>{money(item.value * 100)}</small></p></div>)}</div>
+          <div className="allocation-chart">{allocation.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={allocation} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="87%" paddingAngle={4} stroke="none">{allocation.map((_item, index) => <Cell key={index} fill={colors[index % colors.length]} />)}</Pie><Tooltip contentStyle={{ background: "#0D2538", border: "1px solid #24465C", borderRadius: 12 }} formatter={(value) => money(Number(value) * 100, currency)} /></PieChart></ResponsiveContainer> : <div className="chart-empty"><Coins size={27} />Sem investimentos em {currency}.</div>}</div>
+          <div className="allocation-legend">{allocation.map((item, index) => <div key={item.name}><span style={{ background: colors[index % colors.length] }} /><p><strong>{item.name}</strong><small>{money(item.value * 100, currency)}</small></p></div>)}</div>
         </div>
       </article>
 

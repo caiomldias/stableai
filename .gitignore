@@ -4,8 +4,8 @@ node_modules/
 .wrangler/
 out/
 coverage/
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 *.log
 .DS_Store
+*.tsbuildinfo

@@ -6,9 +6,10 @@ import type {
   Transaction,
   TransactionKind,
 } from "@/lib/types";
+import { getStoredCurrency, intlLocale } from "@/lib/locale";
 
-export const money = (amountCents: number, currency: Currency = "BRL") =>
-  new Intl.NumberFormat("pt-BR", {
+export const money = (amountCents: number, currency: Currency = getStoredCurrency()) =>
+  new Intl.NumberFormat(intlLocale(), {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -16,12 +17,12 @@ export const money = (amountCents: number, currency: Currency = "BRL") =>
 
 export const shortDate = (isoDate: string) => {
   const date = safeDate(isoDate);
-  return date ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(date) : "data não informada";
+  return date ? new Intl.DateTimeFormat(intlLocale(), { day: "2-digit", month: "short" }).format(date) : "data não informada";
 };
 
 export const fullDate = (isoDate: string) => {
   const date = safeDate(isoDate);
-  return date ? new Intl.DateTimeFormat("pt-BR", {
+  return date ? new Intl.DateTimeFormat(intlLocale(), {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -97,7 +98,7 @@ export function refreshGoal(goal: Omit<PurchaseGoal, "estimatedDate" | "status">
 }
 
 export function monthlyExpenses(transactions: Transaction[], currency: Currency) {
-  const formatter = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+  const formatter = new Intl.DateTimeFormat(intlLocale(), { month: "short" });
   const grouped = new Map<string, { timestamp: number; value: number }>();
 
   transactions

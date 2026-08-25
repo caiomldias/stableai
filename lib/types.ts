@@ -1,4 +1,5 @@
 export type Currency = "BRL" | "USD";
+export type NoticeTone = "info" | "success" | "error";
 export type TransactionKind = "PIX" | "CARD" | "BOLETO" | "RECURRING" | "OTHER";
 export type TransactionFlow = "EXPENSE" | "INCOME";
 export type PaymentStatus = "PENDING" | "PAID" | "OVERDUE";

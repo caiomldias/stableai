@@ -1,20 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import {
   Bell,
   CalendarBlank,
   ChartLineUp,
+  CheckCircle,
   House,
+  Info,
   ListBullets,
+  LockKey,
   PiggyBank,
   Receipt,
   SignOut,
-  Sparkle,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import { Modal } from "@/components/ui/modal";
+import { AssistantFab } from "@/components/assistant-fab";
+import { useLocale } from "@/components/locale-provider";
+import { ProfileSettings, UserAvatar } from "@/components/profile-settings";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { ExpensesView } from "@/components/views/expenses-view";
 import { InvestmentsView } from "@/components/views/investments-view";
@@ -24,16 +31,16 @@ import { demoData } from "@/lib/demo-data";
 import { emptyFinanceData } from "@/lib/empty-data";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { money, shortDate } from "@/lib/finance";
-import type { FinanceData } from "@/lib/types";
+import type { FinanceData, NoticeTone } from "@/lib/types";
 
 export type AppView = "home" | "expenses" | "plan" | "investments" | "more";
 
 const navigation = [
-  { id: "home" as const, label: "Início", icon: House },
-  { id: "expenses" as const, label: "Gastos", icon: Receipt },
-  { id: "plan" as const, label: "Planejar", icon: PiggyBank },
-  { id: "investments" as const, label: "Investir", icon: ChartLineUp },
-  { id: "more" as const, label: "Mais", icon: ListBullets },
+  { id: "home" as const, labelKey: "nav.home" as const, icon: House },
+  { id: "expenses" as const, labelKey: "nav.expenses" as const, icon: Receipt },
+  { id: "plan" as const, labelKey: "nav.plan" as const, icon: PiggyBank },
+  { id: "investments" as const, labelKey: "nav.investments" as const, icon: ChartLineUp },
+  { id: "more" as const, labelKey: "nav.more" as const, icon: ListBullets },
 ];
 
 function getInitialView(): AppView {
@@ -51,6 +58,7 @@ export function FinanceApp({
   demo: boolean;
   onExitDemo: () => void;
 }) {
+  const { language, flag, selectLanguage, t } = useLocale();
   const router = useRouter();
   const [view, setViewState] = useState<AppView>(getInitialView);
   const [data, setData] = useState<FinanceData>(() => {
@@ -72,14 +80,26 @@ export function FinanceApp({
     catch { window.localStorage.removeItem("stable-ia-demo"); return demoData; }
   });
   const [loading, setLoading] = useState(Boolean(session));
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const accessToken = session?.access_token;
+  const showNotice = useCallback((message: string, tone: NoticeTone = "info") => {
+    setNotice({ message, tone });
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 5200);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
   const name = useMemo(() => {
     if (demo) return "Caio";
-    return session?.user.user_metadata?.full_name?.split(" ")[0] || session?.user.email?.split("@")[0] || "Olá";
+    return session?.user.user_metadata?.full_name || session?.user.user_metadata?.name || session?.user.email?.split("@")[0] || "Olá";
   }, [demo, session]);
+  const avatarUrl = demo ? undefined : (session?.user.user_metadata?.avatar_url || session?.user.user_metadata?.picture) as string | undefined;
   const alerts = useMemo(() => {
     const limit = new Date();
     limit.setHours(23, 59, 59, 999);
@@ -112,9 +132,9 @@ export function FinanceApp({
         return response.json() as Promise<FinanceData>;
       })
       .then(setData)
-      .catch((error: Error) => setNotice(error.message))
+      .catch((error: Error) => showNotice(error.message, "error"))
       .finally(() => setLoading(false));
-  }, [session, accessToken]);
+  }, [session, accessToken, showNotice]);
 
   const updateData = useCallback((updater: (current: FinanceData) => FinanceData) => {
     setData((current) => {
@@ -125,18 +145,23 @@ export function FinanceApp({
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify(next),
-        }).catch(() => setNotice("A alteração ficou no aparelho e será reenviada quando houver conexão."));
+        }).catch(() => showNotice("A alteração ficou no aparelho e será reenviada quando houver conexão.", "error"));
       }
       return next;
     });
-  }, [accessToken, demo]);
+  }, [accessToken, demo, showNotice]);
 
   async function signOut() {
     const confirmed = window.confirm(demo ? "Sair da demonstração?" : "Sair desta conta? Você poderá entrar com outra conta em seguida.");
     if (!confirmed) return;
     if (demo) return onExitDemo();
     const { error } = await getSupabaseBrowser()?.auth.signOut() ?? {};
-    if (error) setNotice("Não foi possível sair agora. Tente novamente.");
+    if (error) showNotice("Não foi possível sair agora. Tente novamente.", "error");
+  }
+
+  function openProfile() {
+    if (demo) return showNotice("Entre em uma conta para editar nome, foto e senha.", "info");
+    setProfileOpen(true);
   }
 
   async function finishAccountDeletion() {
@@ -145,52 +170,59 @@ export function FinanceApp({
     router.refresh();
   }
 
-  const activeLabel = navigation.find((item) => item.id === view)?.label ?? "Início";
+  const activeLabel = t(navigation.find((item) => item.id === view)?.labelKey ?? "nav.home");
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-lockup"><span className="brand-mark"><Sparkle size={25} weight="fill" /></span><strong>StableAI</strong></div>
+        <div className="brand-lockup"><span className="brand-mark"><Image src="/stableai-genie.png" alt="" width={46} height={46} priority unoptimized /></span><strong>StableAI</strong></div>
         <nav aria-label="Principal">
-          {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={22} weight={view === item.id ? "fill" : "regular"} /><span>{item.label}</span></button>)}
+          {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={22} weight={view === item.id ? "fill" : "regular"} /><span>{t(item.labelKey)}</span></button>)}
         </nav>
-        <div className="sidebar-foot">
-          <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
+        <button className="sidebar-foot" type="button" onClick={openProfile} aria-label="Abrir configurações do perfil">
+          <UserAvatar name={name} url={avatarUrl} />
           <div><strong>{name}</strong><small>{demo ? "Demonstração" : "Conta pessoal"}</small></div>
-        </div>
+          {demo && <LockKey className="sidebar-lock" size={16} aria-label="Disponível apenas para contas" />}
+        </button>
       </aside>
 
       <main className="app-main">
         <header className="topbar">
-          <div><span className="mobile-brand">StableAI</span><h1>{activeLabel}</h1></div>
+          <div className="topbar-title"><span className="mobile-brand">StableAI</span><h1>{activeLabel}</h1>{demo && <span className="guest-badge"><LockKey size={14} /> Convidado</span>}</div>
           <div className="topbar-actions">
+            <button className="locale-toggle" type="button" onClick={() => selectLanguage(language === "pt-BR" ? "en-US" : "pt-BR")} aria-label={t("top.switchTo")} title={t("top.switchTo")}>
+              <span aria-hidden="true">{flag}</span><span className="locale-code">{language === "pt-BR" ? "BRL" : "USD"}</span>
+            </button>
+            <button className={`profile-shortcut${demo ? " guest-locked" : ""}`} type="button" onClick={openProfile} aria-label="Abrir configurações do perfil"><UserAvatar name={name} url={avatarUrl} />{demo && <LockKey className="profile-lock" size={14} />}</button>
             <button className="button icon-only ghost notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`Notificações${alerts.length ? `, ${alerts.length} pendentes` : ""}`}><Bell size={21} />{alerts.length > 0 && <span>{alerts.length}</span>}</button>
-            <button className="button small ghost account-action" type="button" onClick={signOut} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
+            <button className="button small ghost account-action" type="button" onClick={signOut} aria-label={demo ? "Sair da demonstração" : "Sair ou trocar de conta"} title="Encerra a sessão atual e volta para a tela de login"><SignOut size={19} /><span>{demo ? "Sair" : "Sair / trocar conta"}</span></button>
           </div>
         </header>
 
-        {notice && <div className="notice" role="status"><span>{notice}</span><button onClick={() => setNotice("")} type="button">Fechar</button></div>}
+        {notice && <div className={`notice notice-${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"} aria-live={notice.tone === "error" ? "assertive" : "polite"} aria-atomic="true"><span className="notice-content">{notice.tone === "success" ? <CheckCircle size={20} weight="fill" /> : notice.tone === "error" ? <WarningCircle size={20} weight="fill" /> : <Info size={20} weight="fill" />}<span>{notice.message}</span></span><button onClick={() => setNotice(null)} type="button">Fechar</button></div>}
 
         {loading ? <LoadingSkeleton /> : (
           <div className="view-content">
-            {view === "home" && <DashboardView data={data} setView={setView} />}
-            {view === "expenses" && <ExpensesView data={data} updateData={updateData} />}
-            {view === "plan" && <PlanningView data={data} updateData={updateData} accessToken={accessToken} />}
+            {view === "home" && <DashboardView data={data} setView={setView} demo={demo} onNotice={showNotice} />}
+            {view === "expenses" && <ExpensesView data={data} updateData={updateData} onNotice={showNotice} />}
+            {view === "plan" && <PlanningView data={data} updateData={updateData} accessToken={accessToken} onNotice={showNotice} />}
             {view === "investments" && <InvestmentsView data={data} />}
-            {view === "more" && <MoreView data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={signOut} onAccountDeleted={finishAccountDeletion} onNotice={setNotice} />}
+            {view === "more" && <MoreView data={data} updateData={updateData} accessToken={accessToken} demo={demo} onSignOut={signOut} onAccountDeleted={finishAccountDeletion} onNotice={showNotice} />}
           </div>
         )}
       </main>
 
       <nav className="bottom-nav" aria-label="Principal">
-        {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={23} weight={view === item.id ? "fill" : "regular"} /><span>{item.label}</span></button>)}
+        {navigation.map((item) => <button key={item.id} type="button" className={view === item.id ? "active" : ""} onClick={() => setView(item.id)}><item.icon size={23} weight={view === item.id ? "fill" : "regular"} /><span>{t(item.labelKey)}</span></button>)}
       </nav>
+      <AssistantFab data={data} accessToken={accessToken} />
       <Modal open={alertsOpen} title="Seus lembretes" description={`Avisos para os próximos ${data.notifications.daysBefore} dias.`} onClose={() => setAlertsOpen(false)}>
         <div className="alert-list">
           {alerts.map((item) => <article key={item.id}><span className="row-icon"><CalendarBlank size={20} /></span><p><strong>{item.title}</strong><small>{item.detail}</small></p><b>{item.amount}</b></article>)}
           {!alerts.length && <div className="list-empty"><Bell size={28} /><span>Nenhum compromisso próximo.</span></div>}
         </div>
       </Modal>
+      {session && <ProfileSettings session={session} open={profileOpen} onClose={() => setProfileOpen(false)} onNotice={showNotice} />}
     </div>
   );
 }

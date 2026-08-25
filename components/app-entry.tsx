@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { AuthScreen } from "@/components/auth-screen";
 import { FinanceApp } from "@/components/finance-app";
+import { LocaleProvider } from "@/components/locale-provider";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase-browser";
 
 export function AppEntry() {
@@ -23,6 +24,9 @@ export function AppEntry() {
   }, []);
 
   if (!ready) return <main className="app-loading"><span className="loading-mark" aria-label="Carregando" /></main>;
-  if (!session && !demo) return <AuthScreen onDemo={() => { window.scrollTo(0, 0); setDemo(true); }} />;
-  return <FinanceApp session={session} demo={demo} onExitDemo={() => setDemo(false)} />;
+  return <LocaleProvider>
+    {!session && !demo
+      ? <AuthScreen onDemo={() => { window.scrollTo(0, 0); setDemo(true); }} />
+      : <FinanceApp session={session} demo={demo} onExitDemo={() => setDemo(false)} />}
+  </LocaleProvider>;
 }

@@ -24,6 +24,9 @@ export async function deleteAccountData(
   });
   if (auditError) throw new Error(auditError.message);
 
+  const { error: avatarError } = await admin.storage.from("avatars").remove([`${userId}/avatar`]);
+  if (avatarError) throw new Error(avatarError.message);
+
   const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId);
   if (deleteUserError) throw new Error(deleteUserError.message);
 

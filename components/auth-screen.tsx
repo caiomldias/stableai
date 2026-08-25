@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Image from "next/image";
 import {
   DeviceMobile,
   EnvelopeSimple,
@@ -8,13 +9,14 @@ import {
   GoogleLogo,
   LockKey,
   ShieldCheck,
-  TrendUp,
 } from "@phosphor-icons/react";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase-browser";
+import { useLocale } from "@/components/locale-provider";
 
 type Mode = "email" | "phone";
 
 export function AuthScreen({ onDemo }: { onDemo: () => void }) {
+  const { language, selectLanguage, t } = useLocale();
   const [mode, setMode] = useState<Mode>("email");
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -82,7 +84,7 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
     <main className="auth-page">
       <section className="auth-intro" aria-label="Apresentação">
         <div className="brand-lockup">
-          <span className="brand-mark"><TrendUp size={27} weight="bold" /></span>
+          <span className="brand-mark"><Image src="/stableai-genie.png" alt="" width={46} height={46} priority unoptimized /></span>
           <strong>StableAI</strong>
         </div>
         <div>
@@ -94,9 +96,20 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
 
       <section className="auth-panel" aria-label="Acesso">
         <div className="auth-panel-header">
-          <span className="eyebrow">Acesse sua conta</span>
-          <h2>{isSignUp ? "Crie seu espaço" : "Que bom ter você aqui"}</h2>
-          <p>Escolha como prefere entrar.</p>
+          <span className="eyebrow">{t("auth.eyebrow")}</span>
+          <h2>{isSignUp ? t("auth.signup") : t("auth.welcome")}</h2>
+          <p>{t("auth.subtitle")}</p>
+          <div className="locale-choice" aria-label={t("auth.language")}>
+            <span className="locale-choice-label">{t("auth.chooseLanguage")}</span>
+            <div className="locale-choice-buttons">
+              <button type="button" className={language === "en-US" ? "active" : ""} onClick={() => selectLanguage("en-US")} aria-pressed={language === "en-US"}>
+                <span aria-hidden="true">🇺🇸</span><span>English · USD</span>
+              </button>
+              <button type="button" className={language === "pt-BR" ? "active" : ""} onClick={() => selectLanguage("pt-BR")} aria-pressed={language === "pt-BR"}>
+                <span aria-hidden="true">🇧🇷</span><span>Português · BRL</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {(providers.google || providers.facebook) && <>
@@ -114,15 +127,15 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
         {mode === "email" ? (
           <form className="auth-form" onSubmit={handleEmail}>
             <div className="field">
-              <label htmlFor="email">E-mail</label>
+              <label htmlFor="email">{t("auth.email")}</label>
               <div className="input-with-icon"><EnvelopeSimple size={20} /><input className="input" id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></div>
             </div>
             <div className="field">
-              <label htmlFor="password">Senha</label>
+              <label htmlFor="password">{t("auth.password")}</label>
               <div className="input-with-icon"><LockKey size={20} /><input className="input" id="password" type="password" minLength={8} autoComplete={isSignUp ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} required /></div>
               <small>Mínimo de 8 caracteres.</small>
             </div>
-            <button className="button primary full" disabled={busy} type="submit">{busy ? "Aguarde" : isSignUp ? "Criar conta" : "Entrar"}</button>
+            <button className="button primary full" disabled={busy} type="submit">{busy ? "Aguarde" : isSignUp ? t("auth.create") : t("auth.login")}</button>
           </form>
         ) : (
           <form className="auth-form" onSubmit={handlePhone}>
@@ -135,16 +148,17 @@ export function AuthScreen({ onDemo }: { onDemo: () => void }) {
           </form>
         )}
 
+        <div className="demo-access">
+          <button className="button primary full" type="button" onClick={onDemo}>{t("auth.demo")}</button>
+          <small>Veja dados fictícios e teste os recursos sem conectar uma conta ou banco.</small>
+          {!isSupabaseConfigured && <small>O modo de demonstração está disponível enquanto o Supabase não estiver configurado.</small>}
+        </div>
+
         {message && <p className="auth-message" role="status">{message}</p>}
 
         <button className="text-button" type="button" onClick={() => setIsSignUp((value) => !value)}>
           {isSignUp ? "Já tenho uma conta" : "Ainda não tenho conta"}
         </button>
-
-        <div className="demo-access">
-          <button className="button ghost full" type="button" onClick={onDemo}>Explorar demonstração</button>
-          {!isSupabaseConfigured && <small>Modo de demonstração ativo. Configure o Supabase para usar login real.</small>}
-        </div>
       </section>
     </main>
   );
